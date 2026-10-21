@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img">
+  <title>属性图与三类关系族</title>
+  <desc>同一张属性图上：节点 4 类标签、边 5 种类型，入库边 462 条。三族关系（结构 / 教学先修 / 数学推导）共用同一套知识点节点，各自回答一个问题，在界面上也各有落点。</desc>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+
+  <text x="64" y="62" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="26" font-weight="500" fill="#1E293B">属性图与三类关系族</text>
+  <text x="64" y="94" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="15" fill="#64748B">一张属性图：节点 4 类标签、边 5 种类型；三族关系共用同一套知识点节点，各自回答一个问题</text>
+
+  <rect x="64" y="126" width="1152" height="132" rx="16" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="88" y="160" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="500" fill="#1E293B">同一张属性图（Labeled Property Graph）</text>
+  <text x="88" y="188" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#64748B">节点 4 类标签：Chapter 章 8　·　Section 节 41　·　KnowledgePoint 知识点 125　·　Formula 公式 138</text>
+  <text x="88" y="214" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#64748B">边 5 种类型：HAS_SECTION 8　·　HAS_POINT 125　·　HAS_FORMULA 138　·　PREREQUISITE_OF 179　·　RELATES_TO 12</text>
+  <text x="88" y="240" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#94A3B8">入库边共 462 条。PREREQUISITE_OF 带 strength + reason；RELATES_TO 带 kind + note ——「边是一等对象」的直接体现</text>
+
+  <rect x="64" y="286" width="364" height="316" rx="16" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+  <rect x="88" y="306" width="132" height="28" rx="14" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1"/>
+  <text x="162" y="325" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#085041">Graph A · 结构</text>
+  <text x="88" y="366" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="17" font-weight="500" fill="#085041">结构关系族</text>
+  <text x="88" y="392" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#0F6E56">回答「课程由什么构成」</text>
+  <line x1="88" y1="412" x2="404" y2="412" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="88" y="438" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">形态</text>
+  <text x="148" y="438" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">树，必然无环</text>
+  <text x="88" y="464" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">校验</text>
+  <text x="148" y="464" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">引用完整性</text>
+  <text x="88" y="490" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">边</text>
+  <text x="148" y="490" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">含节 8 · 含知识点 125 · 含公式 138</text>
+  <text x="88" y="516" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">界面</text>
+  <text x="148" y="516" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">左栏「课程结构」树</text>
+  <text x="88" y="542" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">一眼看懂</text>
+  <text x="148" y="542" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">章 → 节 → 知识点</text>
+
+  <rect x="458" y="286" width="364" height="316" rx="16" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+  <rect x="482" y="306" width="132" height="28" rx="14" fill="#EEEDFE" stroke="#534AB7" stroke-width="1"/>
+  <text x="548" y="325" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#3C3489">Graph B · 先修</text>
+  <text x="482" y="366" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="17" font-weight="500" fill="#3C3489">教学先修关系族</text>
+  <text x="482" y="392" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#534AB7">回答「谁是谁的先修」</text>
+  <line x1="482" y1="412" x2="798" y2="412" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="482" y="438" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">形态</text>
+  <text x="542" y="438" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">有向无环图，必须无环</text>
+  <text x="482" y="464" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">校验</text>
+  <text x="542" y="464" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">Kahn 拓扑排序 + 冗余边检测</text>
+  <text x="482" y="490" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">边</text>
+  <text x="542" y="490" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">PREREQUISITE_OF 179 + RELATES_TO 12</text>
+  <text x="482" y="516" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">界面</text>
+  <text x="542" y="516" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">中栏画布 / 右栏知识点 / 根因诊断</text>
+  <text x="482" y="542" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">边属性</text>
+  <text x="542" y="542" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">strength（强/弱）+ reason</text>
+
+  <rect x="852" y="286" width="364" height="316" rx="16" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+  <rect x="876" y="306" width="132" height="28" rx="14" fill="#FAEEDA" stroke="#EF9F27" stroke-width="1"/>
+  <text x="942" y="325" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#854F0B">Graph C · 推导</text>
+  <text x="876" y="366" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="17" font-weight="500" fill="#854F0B">数学推导关系族</text>
+  <text x="876" y="392" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#854F0B">回答「这个式子怎么来的」</text>
+  <line x1="876" y1="412" x2="1192" y2="412" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="876" y="438" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">形态</text>
+  <text x="936" y="438" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">有向图，允许成环</text>
+  <text x="876" y="464" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">校验</text>
+  <text x="936" y="464" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">每条边带可展开的推导步骤</text>
+  <text x="876" y="490" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">边</text>
+  <text x="936" y="490" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">取旋度 / 分离变数 / 定出 等 6 种</text>
+  <text x="876" y="516" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">界面</text>
+  <text x="936" y="516" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">右栏「知识点」页最底部</text>
+  <text x="876" y="542" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="11.5" fill="#94A3B8">一问一答</text>
+  <text x="936" y="542" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#1E293B">「它是怎么来的」</text>
+
+  <rect x="64" y="620" width="1152" height="58" rx="12" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="88" y="644" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#1E293B">共用同一套知识点节点：先修链回溯到的基础概念，与推导链里的方程，是同一个节点 —— 否则「补前置」与「推公式」对不上。</text>
+  <text x="88" y="666" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12.5" fill="#64748B">但两族约束相反（必须无环 / 允许成环），约束写在关系词表的 allowsCycle 字段里，不靠代码里的隐含假设。</text>
+</svg>

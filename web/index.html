@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>电动力学 AI 助教</title>
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<script>
+/* 全局错误条：任何 JS 崩溃都直接显示在页面上，不再无声空白。
+   独立于主脚本，主脚本语法错误时也能报出来。 */
+(function () {
+  function showErr(msg) {
+    var bar = document.getElementById('globerr');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'globerr';
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#B91C1C;color:#fff;font:12px/1.5 monospace;padding:6px 12px;white-space:pre-wrap;';
+      (document.body || document.documentElement).appendChild(bar);
+    }
+    bar.textContent += '页面脚本错误: ' + msg + '\n';
+  }
+  window.addEventListener('error', function (e) { showErr((e.message || '未知错误') + (e.filename ? '' : '')); });
+  window.addEventListener('unhandledrejection', function (e) { showErr('Promise 拒绝: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)); });
+})();
+</script>
+<style>
+  :root {
+    --green: #0E7A5C;
+    --green-dark: #0A5C45;
+    --green-soft: #E1F5EE;
+    --bg: #F2F5F3;
+    --card: #FFFFFF;
+    --line: #E3E8E5;
+    --text: #1F2933;
+    --muted: #64748B;
+    --faint: #94A3B8;
+    --amber: #B45309;
+    --red: #B42318;
+    --blue: #1D4ED8;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  header {
+    height: 56px; flex: 0 0 56px; background: var(--card);
+    border-bottom: 1px solid var(--line); display: flex; align-items: center;
+    padding: 0 20px; gap: 14px;
+  }
+  header .logo {
+    width: 30px; height: 30px; border-radius: 8px; background: var(--green);
+    color: #fff; display: grid; place-items: center; font-weight: 600; font-size: 15px;
+  }
+  header h1 { font-size: 15px; font-weight: 600; margin: 0; }
+  header .sub { font-size: 12px; color: var(--muted); }
+  header .spacer { flex: 1; }
+  header .stat { font-size: 12px; color: var(--muted); text-align: right; }
+  header .stat b { color: var(--green); font-weight: 600; }
+
+  main { flex: 1; display: grid; grid-template-columns: 244px minmax(0, 1fr) 400px; min-height: 0; }
+
+  /* 窄窗口：原来三栏都是固定宽，加起来超出视口后会横向溢出，
+     右侧对话区被推出可视范围 —— 表现为「切到某个 tab 一片空白」。
+     这里逐级退让，保证对话区永远完整可见。 */
+  @media (max-width: 1180px) {
+    main { grid-template-columns: 196px minmax(0, 1fr) 360px; }
+  }
+  @media (max-width: 900px) {
+    main { grid-template-columns: minmax(0, 1fr) 380px; }
+    .col.side { display: none; }
+  }
+  @media (max-width: 700px) {
+    main { grid-template-columns: minmax(0, 1fr); }
+    .col.center { display: none; }
+    .legend, .overlay, .hint { display: none; }
+  }
+
+  .col { min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .col.side { background: var(--card); border-right: 1px solid var(--line); }
+  .col.center { position: relative; background: var(--card); }
+  .col.right { background: var(--card); border-left: 1px solid var(--line); }
+
+  .colhead {
+    flex: 0 0 42px; height: 42px; display: flex; align-items: center;
+    padding: 0 14px; border-bottom: 1px solid var(--line);
+    font-size: 13px; font-weight: 600; gap: 8px;
+  }
+  .colhead .tools { margin-left: auto; display: flex; gap: 6px; }
+
+  .scroll { flex: 1; overflow: auto; min-height: 0; }
+
+  /* ---------- 章节树 ---------- */
+  .chap { border-bottom: 1px solid var(--line); }
+  .chap > .h {
+    padding: 9px 12px; cursor: pointer; display: flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 500;
+  }
+  .chap > .h:hover { background: var(--green-soft); }
+  .chap .num {
+    font-size: 11px; color: var(--green); background: var(--green-soft);
+    border-radius: 4px; padding: 1px 5px; flex: 0 0 auto;
+  }
+  .chap .cnt { margin-left: auto; font-size: 11px; color: var(--faint); }
+  .chap .secs { display: none; }
+  .chap.open .secs { display: block; }
+  .sec { padding: 6px 12px 6px 26px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+  .sec:hover { background: var(--green-soft); color: var(--green-dark); }
+  .sec .pts { display: none; }
+  .sec.open .pts { display: block; }
+  .kpi {
+    padding: 4px 12px 4px 38px; font-size: 12px; color: var(--text);
+    cursor: pointer; border-left: 2px solid transparent;
+  }
+  .kpi:hover { background: var(--green-soft); border-left-color: var(--green); }
+
+  /* ---------- 画布 ---------- */
+  #cv { display: block; width: 100%; height: 100%; cursor: grab; }
+  #cv.grabbing { cursor: grabbing; }
+  .overlay {
+    position: absolute; left: 14px; bottom: 14px; display: flex; gap: 6px; flex-wrap: wrap;
+    max-width: calc(100% - 28px);
+  }
+  .chip {
+    font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--card);
+    border: 1px solid var(--line); color: var(--muted); cursor: pointer;
+  }
+  .chip:hover { border-color: var(--green); color: var(--green); }
+  .chip.on { background: var(--green); color: #fff; border-color: var(--green); }
+  .legend {
+    position: absolute; right: 14px; top: 14px; background: rgba(255,255,255,.94);
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font-size: 11.5px;
+    color: var(--muted); line-height: 1.9;
+  }
+  .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .hint {
+    position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
+    font-size: 12px; color: var(--faint); background: var(--card);
+    border: 1px solid var(--line); border-radius: 99px; padding: 4px 14px;
+    transition: opacity .3s;
+  }
+  .legend .lg-title {
+    font-size: 10.5px; color: var(--faint); margin-top: 9px; padding-top: 8px;
+    border-top: 1px solid var(--line); letter-spacing: .04em;
+  }
+  .legend .lg-title:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .legend .lg-line { display: inline-block; width: 22px; height: 2px; margin-right: 6px;
+    vertical-align: middle; background: var(--green); border-radius: 2px; }
+  .legend .lg-line.thin { height: 1px; opacity: .45; }
+  .legend .lg-line.dash {
+    background: repeating-linear-gradient(90deg, #7F77DD 0 3px, transparent 3px 6px);
+  }
+  .legend .lg-btn { color: var(--green); cursor: pointer; text-decoration: underline;
+    text-underline-offset: 2px; margin-top: 7px; display: inline-block; }
+  /* 画布窄的时候图例本身会吃掉半张图，先收起可以自查的章节色，保留不易发现的线型说明 */
+  @media (max-width: 1180px) {
+    .legend .lg-chap { display: none; }
+  }
+
+  /* ---------- 边关系卡片 ---------- */
+  .ecard {
+    position: absolute; right: 14px; bottom: 52px; width: min(312px, calc(100% - 28px));
+    max-height: calc(100% - 66px); overflow: auto; display: none;
+    background: rgba(255,255,255,.97); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 13px;
+    box-shadow: 0 6px 22px rgba(15,23,42,.13); font-size: 12.5px;
+  }
+  .ecard.on { display: block; }
+  .ec-head { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; }
+  .ec-rel { font-size: 13.5px; font-weight: 600; }
+  .ec-std { font-size: 10.5px; padding: 1px 6px; border-radius: 99px; border: 1px solid; white-space: nowrap; }
+  .ec-std.skos { color: #1D4ED8; border-color: #BFDBFE; background: #EFF6FF; }
+  .ec-std.domain { color: #7C3AED; border-color: #DDD6FE; background: #F5F3FF; }
+  .ec-x { margin-left: auto; color: var(--faint); cursor: pointer; font-size: 15px; line-height: 1; }
+  .ec-x:hover { color: var(--ink); }
+  .ec-nodes { background: var(--bg); border-radius: 8px; padding: 9px 10px; margin-bottom: 9px; line-height: 1.7; }
+  .ec-node { color: var(--green); cursor: pointer; font-weight: 500; }
+  .ec-node:hover { text-decoration: underline; }
+  .ec-arrow { color: var(--muted); margin: 0 4px; }
+  .ec-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+  .ec-tag {
+    font-size: 10.5px; padding: 1px 6px; border-radius: 4px;
+    background: var(--bg); color: var(--muted); border: 1px solid var(--line);
+  }
+  .ec-tag.warn { background: #FFFBEB; border-color: #FDE68A; color: #92400E; }
+  .ec-lbl { font-size: 11px; color: var(--faint); margin: 9px 0 4px; }
+  .ec-body {
+    font-size: 12px; line-height: 1.75; background: #F8FAF9;
+    border-left: 2px solid var(--green); border-radius: 0 6px 6px 0; padding: 7px 9px;
+  }
+  .ec-quiet { font-size: 11.5px; color: var(--faint); }
+  .ec-foot { font-size: 10.5px; color: var(--faint); margin-top: 9px; line-height: 1.6; }
+
+  /* ---------- 关系词表（SKOS 13 种） ---------- */
+  .skos {
+    position: absolute; right: 14px; top: 14px; width: min(336px, calc(100% - 28px)); z-index: 3;
+    max-height: calc(100% - 28px); overflow: auto; display: none;
+    background: rgba(255,255,255,.98); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 13px;
+    box-shadow: 0 8px 26px rgba(15,23,42,.16); font-size: 12px;
+  }
+  .skos.on { display: block; }
+  .skos-head { display: flex; align-items: baseline; gap: 6px; }
+  .skos-head b { font-size: 13px; }
+  .skos-head .ec-x { font-size: 15px; }
+  .skos .sub { font-size: 11px; color: var(--faint); margin: 3px 0 8px; line-height: 1.65; }
+  .skos h5 { margin: 11px 0 4px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+  .skos .r { display: flex; align-items: baseline; gap: 6px; padding: 4px 0 2px; }
+  .skos .r code { font-size: 10px; color: #1D4ED8; background: #EFF6FF; padding: 0 4px; border-radius: 3px; }
+  .skos .r .st { margin-left: auto; font-size: 10px; white-space: nowrap; }
+  .skos .r-why {
+    font-size: 10.5px; color: var(--muted); line-height: 1.7;
+    padding: 0 0 6px 2px; border-bottom: 1px dashed var(--line); margin-bottom: 2px;
+  }
+  .skos .r.st-in-use .st { color: var(--green); font-weight: 600; }
+  .skos .r.st-equivalent .st { color: #1D4ED8; }
+  .skos .r.st-by-design .st { color: var(--faint); }
+  .skos .r.st-data-gap .st { color: #B45309; font-weight: 600; }
+  .skos .r.st-needs-vocab .st { color: #7C3AED; }
+  .skos .note { font-size: 10.5px; color: var(--faint); margin-top: 9px; line-height: 1.7; }
+
+  /* ---------- 右侧 ---------- */
+  .tabs { display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); flex: 0 0 auto; }
+  .tab {
+    padding: 10px 13px; font-size: 13px; color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab.on { color: var(--green); border-bottom-color: var(--green); font-weight: 500; }
+  .pane { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  .pane.on { display: flex; }
+
+  .pad { padding: 14px; }
+
+  .kv { margin-bottom: 12px; }
+  .kv .k { font-size: 11.5px; color: var(--faint); margin-bottom: 2px; }
+  .kv .v { font-size: 13px; }
+
+  .pill {
+    display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 99px;
+    background: var(--green-soft); color: var(--green-dark); margin-right: 5px;
+  }
+  .pill.warn { background: #FEF3C7; color: var(--amber); }
+  .pill.gray { background: #F1F5F9; color: var(--muted); }
+
+  h4 { font-size: 13px; margin: 16px 0 8px; font-weight: 600; }
+  h4:first-child { margin-top: 0; }
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  ul.plain li { padding: 4px 0; font-size: 13px; }
+  ul.plain li::before { content: "·"; color: var(--green); margin-right: 7px; font-weight: 700; }
+
+  .chain { border-left: 2px solid var(--line); margin-left: 5px; padding-left: 12px; }
+  .chain .lv { margin-bottom: 10px; }
+  .chain .lv .t { font-size: 11.5px; color: var(--faint); margin-bottom: 4px; }
+  .chain .n {
+    font-size: 12.5px; padding: 5px 9px; background: var(--bg); border-radius: 6px;
+    margin-bottom: 4px; cursor: pointer;
+  }
+  .chain .n:hover { background: var(--green-soft); }
+  .chain .n .r { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+  .formula {
+    background: var(--bg); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px;
+    overflow-x: auto;
+  }
+  .formula .nm { font-size: 11.5px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .formula .katex-display { margin: 4px 0; }
+  .katex { font-size: 1.02em; }
+  .katex-display { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+  .katex-error { color: var(--red); font-family: var(--font-mono, monospace); font-size: 12px; }
+
+  /* ---------- 对话 ---------- */
+  .log { flex: 1; overflow: auto; min-height: 0; padding: 14px; }
+  .msg { margin-bottom: 16px; }
+  .msg.me { text-align: right; }
+  .msg.me .bubble {
+    display: inline-block; background: var(--green); color: #fff; padding: 8px 12px;
+    border-radius: 12px 12px 2px 12px; font-size: 13px; text-align: left; max-width: 92%;
+  }
+  .msg.ai .bubble {
+    background: var(--bg); padding: 10px 12px; border-radius: 12px 12px 12px 2px;
+    font-size: 13px;
+  }
+  .msg .meta { font-size: 11.5px; color: var(--faint); margin-bottom: 5px; }
+  .msg.me .meta { text-align: right; }
+
+  .sent { margin-bottom: 3px; position: relative; padding-left: 9px; }
+  .sent::before {
+    content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 2.5px; border-radius: 2px;
+  }
+  .sent.graph::before    { background: var(--green); }
+  .sent.textbook::before { background: var(--blue); }
+  .sent.web::before      { background: #7C3AED; }
+  .sent.inferred::before { background: transparent; }
+  .sent.inferred { color: var(--muted); }
+  .sent.bad::before { background: var(--red); }
+  .cite {
+    font-size: 11px; padding: 1px 6px; border-radius: 99px; margin-left: 4px;
+    background: var(--green-soft); color: var(--green-dark); cursor: pointer;
+    white-space: nowrap;
+  }
+  .cite.tb { background: #DBEAFE; color: var(--blue); }
+  .cite.bad { background: #FEE2E2; color: var(--red); }
+
+  .summary {
+    margin-top: 10px; padding: 9px 11px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; font-size: 12px; color: var(--muted); line-height: 1.9;
+  }
+  .summary b { color: var(--text); font-weight: 600; }
+  .bar { height: 5px; border-radius: 99px; background: var(--line); overflow: hidden; margin-top: 5px; display: flex; }
+  .bar i { display: block; height: 100%; }
+
+  .composer { flex: 0 0 auto; border-top: 1px solid var(--line); padding: 10px 12px; }
+  .composer .row { display: flex; gap: 8px; }
+  textarea {
+    flex: 1; resize: none; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px;
+    font-family: inherit; font-size: 13px; outline: none; min-height: 40px; max-height: 120px;
+    background: var(--bg);
+  }
+  textarea:focus { border-color: var(--green); background: var(--card); }
+  button.send {
+    background: var(--green); color: #fff; border: 0; border-radius: 9px; padding: 0 16px;
+    font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  button.send:disabled { background: #B9C6C1; cursor: default; }
+  button.send:hover:not(:disabled) { background: var(--green-dark); }
+
+  /* 拍照解题入口：贴在输入框左侧，不抢发送键的视觉权重 */
+  button.attach {
+    flex: 0 0 auto; width: 40px; border: 1px solid var(--line); border-radius: 9px;
+    background: var(--card); color: var(--green); font-size: 17px; line-height: 1;
+    cursor: pointer; font-family: inherit; padding: 0;
+  }
+  button.attach:hover:not(:disabled) { border-color: var(--green); background: var(--green-soft); }
+  button.attach:disabled { opacity: .45; cursor: default; }
+  button.attach.busy { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: .45 } }
+
+  /* 聊天流里的题目缩略图 */
+  .thumb {
+    max-width: 190px; max-height: 190px; border-radius: 8px;
+    border: 1px solid var(--line); display: block; margin-bottom: 6px;
+  }
+  /* 聊天流里的分析进度块 */
+  .pg-inline { border: 1px solid var(--line); border-radius: 10px; padding: 10px 11px; background: var(--bg); }
+  .endbtn {
+    font-size: 11.5px; color: var(--muted); cursor: pointer; text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .endbtn:hover { color: var(--green); }
+
+  /* ---------- 推导链（Graph C：这个概念是怎么来的） ---------- */
+  .derive {
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px;
+    margin-top: 14px; background: var(--card);
+  }
+  .derive .dhead {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; color: var(--text);
+  }
+  .derive .dsub { font-size: 11px; color: var(--faint); margin: 3px 0 10px; line-height: 1.6; }
+  .derive .dreview {
+    font-size: 11px; color: #9A3412; background: #FFF7ED; border: 1px solid #FED7AA;
+    border-radius: 7px; padding: 6px 8px; margin-bottom: 10px; line-height: 1.6;
+  }
+  .dnode {
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px;
+    background: var(--bg); font-size: 12.5px;
+  }
+  .dnode.clickable { cursor: pointer; }
+  .dnode.clickable:hover { border-color: var(--green); background: var(--green-soft); }
+  .dnode.start { background: var(--green-soft); border-color: #5DCAA5; }
+  .dnode .dname { font-weight: 500; }
+  .dnode .dexpr { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  /* 行间公式一律左对齐。注意 KaTeX 在 .katex-display **和内层的 > .katex 上各设了一次**
+     text-align:center——只改外层，内层那个 block 会继续居中。
+     窄栏里长式子会横向溢出，居中会让左半截滚不到，「看不见的公式」比挤在一行更糟。 */
+  .derive .katex-display,
+  .derive .katex-display > .katex { text-align: left; }
+  .dnode .dexpr .katex-display { margin: 4px 0 2px; }
+  .dnode .dexpr .katex-display > .katex { font-size: 1.05em; }
+  .dlink {
+    display: flex; flex-direction: column; gap: 2px;
+    border-left: 2px solid #EF9F27; padding: 5px 0 5px 9px;
+    margin: 5px 0 5px 12px; font-size: 11.5px;
+  }
+  .dlink .drel { color: #854F0B; font-weight: 500; }
+  /* 行距 1.9：步骤里是行内公式，\frac 比普通文字高，1.65 会让上下行贴在一起 */
+  .dlink .dsteps { color: var(--muted); line-height: 1.9; }
+  .dcycle {
+    font-size: 11px; color: #412402; background: #FAEEDA; border: 1px solid #EF9F27;
+    border-radius: 7px; padding: 6px 8px; margin-top: 10px; line-height: 1.65;
+  }
+  .dpre { margin-top: 10px; }
+  .dpre .dpre-h { display: block; font-size: 11px; color: var(--faint); margin-bottom: 5px; }
+  .dprow { margin-bottom: 5px; }
+  .dchip {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11.5px; color: #854F0B; background: #FAEEDA;
+    border: 1px solid #EF9F27; border-radius: 6px; padding: 2px 7px;
+  }
+  .dchip .katex { font-size: 1.02em; }
+  /* 前提起了什么作用。以前藏在 title 浮层里，鼠标不悬停就看不到，现在直接写出来 */
+  .dwhy { display: block; font-size: 11px; color: var(--faint); line-height: 1.6; margin-top: 2px; }
+  .dfoot {
+    font-size: 11px; color: var(--faint); margin-top: 10px;
+    border-top: 1px dashed var(--line); padding-top: 8px; line-height: 1.7;
+  }
+
+  .samples { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .sample {
+    font-size: 12px; padding: 3px 9px; border-radius: 99px; background: var(--bg);
+    border: 1px solid var(--line); color: var(--muted); cursor: pointer;
+  }
+  .sample:hover { border-color: var(--green); color: var(--green); }
+
+  .empty { color: var(--faint); font-size: 13px; text-align: center; padding: 40px 20px; }
+  .loading { color: var(--muted); font-size: 12.5px; }
+  .thinking { font-size: 12.5px; color: var(--faint); }
+  details summary { list-style: none; outline: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: "▸ "; color: var(--faint); }
+  details[open] summary::before { content: "▾ "; }
+  .dot { animation: bl 1.2s infinite; }
+  .dot:nth-child(2) { animation-delay: .2s; }
+  .dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes bl { 0%,60%,100% { opacity: .25 } 30% { opacity: 1 } }
+
+  /* ---------- 拍照解题（并入答疑） ---------- */
+
+  /* 上传前的图像质量预检 */
+  .qchk { margin-top: 8px; border-radius: 9px; padding: 9px 11px; font-size: 12px; line-height: 1.7; }
+  .qchk.warn { background: #FFF7ED; border: 1px solid #FED7AA; color: #9A3412; }
+  .qchk.bad { background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B; }
+  .qchk .qh { font-weight: 600; margin-bottom: 3px; }
+  .qchk ul { margin: 4px 0 0; padding-left: 18px; }
+  .qchk li { margin: 2px 0; }
+
+  /* ---------- 进度条（挂在聊天消息里） ---------- */
+  .pg-inline { margin: 4px 0 10px; }
+  .pg-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font-size: 12px; color: var(--muted); margin-bottom: 6px;
+  }
+  .pg-pct { font-size: 11.5px; color: var(--green-dark); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pg-track {
+    height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; position: relative;
+  }
+  .pg-fill {
+    height: 100%; width: 0; border-radius: 99px;
+    background: linear-gradient(90deg, var(--green) 0%, var(--green-dark) 100%);
+    transition: width .45s cubic-bezier(.22,.61,.36,1);
+  }
+  /* 未完成时让填充条带一点流动感，暗示"还在跑" */
+  .pg-fill.running::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+    animation: pgflow 1.4s linear infinite;
+  }
+  @keyframes pgflow { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  .pg-inline.done .pg-fill { background: var(--green); }
+  .pg-inline.err .pg-fill { background: var(--red); }
+
+  .stage {
+    display: flex; align-items: center; gap: 8px; font-size: 12.5px;
+    color: var(--muted); padding: 5px 0;
+  }
+  .stage .dotmark {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--line); flex: 0 0 auto;
+  }
+  .stage.on .dotmark { background: var(--green); animation: bl 1.2s infinite; }
+  .stage.on { color: var(--text); }
+  .stage.done .dotmark { background: var(--green); }
+  .stage .t { margin-left: auto; font-size: 11px; color: var(--faint); }
+
+  .prob {
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px;
+    margin-bottom: 12px; background: var(--card);
+  }
+  .prob .ph { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+  .prob .ph .no { font-size: 12px; font-weight: 600; }
+  .verdict { font-size: 11px; padding: 1px 8px; border-radius: 99px; }
+  .v-correct   { background: var(--green-soft); color: var(--green-dark); }
+  .v-partial   { background: #FEF3C7; color: var(--amber); }
+  .v-incorrect { background: #FEE2E2; color: var(--red); }
+  .v-unreadable{ background: #F1F5F9; color: var(--muted); }
+
+  .frag { font-size: 12px; padding: 4px 8px; border-radius: 6px; margin-bottom: 4px; line-height: 1.65; }
+  .frag .fr-tag { font-size: 10.5px; margin-right: 6px; }
+  .frag.reliable { background: var(--green-soft); }
+  .frag.reliable .fr-tag { color: var(--green-dark); }
+  .frag.noise { background: #FEE2E2; }
+  .frag.noise .fr-tag { color: var(--red); }
+  .frag.unclear { background: #FEF7E6; }
+  .frag.unclear .fr-tag { color: var(--amber); }
+  .frag .fr-note { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .mistake {
+    background: #FFF7F6; border-left: 2.5px solid var(--red); border-radius: 0 6px 6px 0;
+    padding: 7px 10px; margin-bottom: 6px; font-size: 12.5px;
+  }
+  .mistake .ev { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+
+  .seclabel {
+    font-size: 11px; color: var(--faint); text-transform: none;
+    margin: 12px 0 6px; letter-spacing: .3px;
+  }
+  .seclabel:first-child { margin-top: 0; }
+
+  .leakwarn {
+    background: #FEF3C7; border-radius: 7px; padding: 7px 10px; font-size: 11.5px;
+    color: var(--amber); margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">场</div>
+  <div>
+    <h1>电动力学 AI 助教</h1>
+    <div class="sub">知识图谱驱动 · 句子级溯源</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="stat" id="stat">载入中…</div>
+</header>
+
+<main>
+  <div class="col side">
+    <div class="colhead">课程结构</div>
+    <div class="scroll" id="tree"><div class="empty">载入中…</div></div>
+  </div>
+
+  <div class="col center">
+    <canvas id="cv"></canvas>
+    <div class="hint" id="hint">滚轮缩放 · 拖拽平移 · 点击节点或边查看详情</div>
+    <div class="legend">
+      <div class="lg-title">线怎么读</div>
+      <div><span class="lg-line"></span>实线 = 先修（粗=强依赖）</div>
+      <div><span class="lg-line thin"></span>细实线 = 弱先修</div>
+      <div><span class="lg-line dash"></span>虚线 = 主题关联</div>
+      <div class="lg-btn" id="skosbtn">关系词表 · SKOS 13 种 ›</div>
+      <div class="lg-chap">
+        <div class="lg-title">章</div>
+        <div><i style="background:#0E7A5C"></i>第1章 普遍规律</div>
+        <div><i style="background:#1D4ED8"></i>第2章 静电场</div>
+        <div><i style="background:#B45309"></i>第3章 静磁场</div>
+        <div><i style="background:#7C3AED"></i>第4章 波的传播</div>
+        <div><i style="background:#BE185D"></i>第5章 波的辐射</div>
+        <div><i style="background:#0F766E"></i>第6章 狭义相对论</div>
+        <div><i style="background:#64748B"></i>第0/7章</div>
+      </div>
+    </div>
+
+    <!-- 点击边后弹出的关系卡片 -->
+    <div class="ecard" id="ecard"></div>
+
+    <!-- 关系词表：SKOS 13 种原生关系 + 本项目领域扩展 -->
+    <div class="skos" id="skospanel"></div>
+    <div class="overlay">
+      <div class="chip on" data-scope="all">全书</div>
+      <div class="chip" data-scope="focus">当前节点邻域</div>
+      <div class="chip" data-scope="prereq">只显示先修</div>
+    </div>
+  </div>
+
+  <div class="col right">
+    <div class="tabs">
+      <div class="tab on" data-pane="ask">答疑</div>
+      <div class="tab" data-pane="detail">知识点</div>
+      <div class="tab" data-pane="roots">根因诊断</div>
+    </div>
+
+    <div class="pane on" id="pane-ask">
+      <div class="log" id="log">
+        <div class="empty">
+          问我任何电动力学的问题。<br>
+          也可以点左下角 <b>＋</b> 拍一道题：系统会识别题干与公式、在知识图谱里定位
+          涉及的知识点，再一步一步引导你自己想下去（不给答案）。<br><br>
+          <span style="font-size:12px">回答里的每一句都会标注依据来源：<br>
+          绿色 = 图谱知识点，蓝色 = 教材，灰色 = AI 推断</span>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="samples">
+          <div class="sample">为什么需要位移电流？</div>
+          <div class="sample">推迟势是什么物理意义</div>
+          <div class="sample">镜像法怎么用</div>
+        </div>
+        <div class="row">
+          <button class="attach" id="attach" title="拍照 / 选一张题目照片，自动识别并引导">＋</button>
+          <textarea id="q" rows="1" placeholder="输入问题…（Enter 发送，Shift+Enter 换行）"></textarea>
+          <button class="send" id="send">发送</button>
+        </div>
+        <input type="file" id="hwfile" accept="image/*" hidden>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-detail">
+      <div class="scroll pad" id="detail">
+        <div class="empty">点击图上的节点查看详情</div>
+      </div>
+    </div>
+
+    <div class="pane" id="pane-roots">
+      <div class="scroll pad">
+        <div class="kb" style="font-size:12.5px;color:var(--muted);margin-bottom:10px">
+          选中若干「学不懂」的知识点，系统沿先修链回溯，找出真正断裂的基础。
+          这是图运算的结果，不是模型猜的。
+        </div>
+        <div id="symp" style="margin-bottom:10px"></div>
+        <button class="send" id="doroots" style="width:100%;padding:8px;border-radius:9px">分析共同根因</button>
+        <div id="rootout" style="margin-top:14px"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="/vendor/katex/katex.min.js"></script>
+<script>
+const CH_COLOR = {
+  ch0: '#64748B', ch1: '#0E7A5C', ch2: '#1D4ED8', ch3: '#B45309',
+  ch4: '#7C3AED', ch5: '#BE185D', ch6: '#0F766E', ch7: '#64748B',
+};
+const CH_NAME = {};
+
+const $ = (s) => document.querySelector(s);
+const api = (p) => fetch('/api/' + p).then((r) => r.json());
+
+/* ============ 状态 ============ */
+let VIEW = { nodes: [], links: [] };
+let SIM = { nodes: [], links: [], scale: 1, tx: 0, ty: 0, anim: null };
+let SELECTED = null;
+let ROOTSEL = new Set();
+let SCOPE = 'all';
+let SELECTED_EDGE = null;   // 画布上被点中的边（点边看两节点的关系）
+let HOVER_EDGE = null;      // 鼠标悬停的边
+let CATALOG = null;         // 关系词表，按需加载
+
+/**
+ * hash 参数解析：#scope=focus:kp_x&node=kp_x&edge=a|b&skos&tab=detail
+ * 用于分享"直接看某个知识点/某条边"的链接，也让自动化截图验收成为可能。
+ */
+function hashParams() {
+  const out = {};
+  for (const kv of location.hash.replace(/^#/, '').split('&')) {
+    if (!kv) continue;
+    const i = kv.indexOf('=');
+    if (i < 0) out[decodeURIComponent(kv)] = '1';
+    else out[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1));
+  }
+  return out;
+}
+const HP = hashParams();
+
+/* ============ 启动 ============ */
+(async function boot() {
+  const h = await api('health');
+  const g = h.graph || {};
+  $('#stat').innerHTML =
+    `图谱 <b>${g.points ?? 0}</b> 知识点 · <b>${g.prereq ?? 0}</b> 先修边` +
+    ` · 模型 <b>${esc(h.llm?.model ?? '—')}</b>` +
+    ` · build <b>${esc(h.build ?? '?')}</b>`;
+  await loadTree();
+  await loadGraph(HP.scope || 'all');
+})();
+
+/* ============ 章节树 ============ */
+async function loadTree() {
+  const { tree } = await api('tree');
+  const box = $('#tree');
+  box.innerHTML = '';
+  for (const c of tree) {
+    CH_NAME[c.id] = c.no + ' ' + c.title;
+    const d = document.createElement('div');
+    d.className = 'chap';
+    d.innerHTML =
+      `<div class="h"><span class="num">${c.no.replace('第','').replace('章','')}</span>` +
+      `<span>${c.title}</span><span class="cnt">${c.sections.reduce((a,s)=>a+s.points.length,0)}</span></div>` +
+      `<div class="secs"></div>`;
+    const secBox = d.querySelector('.secs');
+    for (const s of c.sections) {
+      const sd = document.createElement('div');
+      sd.className = 'sec';
+      sd.innerHTML = `<span>${s.no} ${s.title}</span><div class="pts"></div>`;
+      const ptBox = sd.querySelector('.pts');
+      for (const p of s.points) {
+        const pd = document.createElement('div');
+        pd.className = 'kpi';
+        pd.textContent = p.name;
+        pd.onclick = (e) => { e.stopPropagation(); selectNode(p.id); };
+        ptBox.appendChild(pd);
+      }
+      sd.querySelector('span').onclick = () => sd.classList.toggle('open');
+      secBox.appendChild(sd);
+    }
+    d.querySelector('.h').onclick = async () => {
+      d.classList.toggle('open');
+      if (d.classList.contains('open') && !d.dataset.loaded) {
+        d.dataset.loaded = '1';
+        await loadGraph('chapter:' + c.id);
+      }
+    };
+    box.appendChild(d);
+  }
+}
+
+/* ============ 图谱渲染 ============ */
+const cv = $('#cv');
+const ctx = cv.getContext('2d');
+
+function resize() {
+  const r = cv.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+window.addEventListener('resize', resize);
+
+async function loadGraph(scope) {
+  SCOPE = scope;
+  const CHIP_SCOPES = ['all', 'focus', 'prereq'];
+  const base = String(scope).split(':')[0];
+  document.querySelectorAll('.chip').forEach((c) =>
+    c.classList.toggle('on', c.dataset.scope === base)
+  );
+
+  let data;
+  if (scope === 'focus') {
+    if (!SELECTED) {
+      $('#hint').textContent = '先在图上点一个节点，再看它的邻域';
+      $('#hint').style.opacity = 1;
+      setTimeout(() => { $('#hint').style.opacity = 0; }, 2200);
+      document.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c.dataset.scope === 'all'));
+      return;
+    }
+    data = await api('graph-view?scope=focus:' + encodeURIComponent(SELECTED) + '&depth=2');
+  } else if (scope === 'prereq') {
+    data = await api('graph-view?scope=all');
+    data.links = data.links.filter((l) => l.type === 'prereq');
+    const keep = new Set();
+    data.links.forEach((l) => { keep.add(l.source); keep.add(l.target); });
+    data.nodes = data.nodes.filter((n) => keep.has(n.id));
+  } else {
+    data = await api('graph-view?scope=' + encodeURIComponent(scope));
+  }
+
+  VIEW = data;
+  layout(data.nodes, data.links, data.center);
+}
+
+function layout(nodes, links, center) {
+  if (SIM.anim) cancelAnimationFrame(SIM.anim);
+  const W = cv.clientWidth, H = cv.clientHeight;
+  const cx = W / 2, cy = H / 2;
+
+  // 按章分组初始化位置，形成簇
+  const byCh = {};
+  nodes.forEach((n) => { (byCh[n.chapterId] ||= []).push(n); });
+  const chs = Object.keys(byCh).sort();
+  chs.forEach((ch, ci) => {
+    const ang = (ci / Math.max(chs.length, 1)) * Math.PI * 2;
+    const R = Math.min(W, H) * 0.29;
+    const gx = cx + Math.cos(ang) * R, gy = cy + Math.sin(ang) * R;
+    byCh[ch].forEach((n, i) => {
+      const a2 = (i / byCh[ch].length) * Math.PI * 2;
+      n.x = gx + Math.cos(a2) * 52 + (Math.random() - .5) * 14;
+      n.y = gy + Math.sin(a2) * 52 + (Math.random() - .5) * 14;
+      n.vx = 0; n.vy = 0;
+      n.r = 5.5 + Math.min(n.__deg || 0, 10) * 0.55;
+    });
+  });
+
+  // 度数决定半径
+  const deg = {};
+  links.forEach((l) => { deg[l.source] = (deg[l.source] || 0) + 1; deg[l.target] = (deg[l.target] || 0) + 1; });
+  nodes.forEach((n) => { n.r = 5 + Math.min(deg[n.id] || 0, 12) * 0.6; });
+
+  if (center) {
+    const c = nodes.find((n) => n.id === center);
+    if (c) { c.x = cx; c.y = cy; c.fixedR = true; }
+  }
+
+  const idx = new Map(nodes.map((n) => [n.id, n]));
+  const edges = links
+    .map((l) => ({ ...l, s: idx.get(l.source), t: idx.get(l.target) }))
+    .filter((e) => e.s && e.t);
+
+  // 重新布局后，旧边对象的位置引用已经失效，选中/悬停态必须先清掉，
+  // 否则高亮会停在上一次的坐标上（画布上表现为一条"幽灵线"）。
+  SELECTED_EDGE = null;
+  HOVER_EDGE = null;
+  const card = $('#ecard');
+  if (card) { card.classList.remove('on'); card.innerHTML = ''; }
+
+  SIM = { nodes, links: edges, scale: 1, tx: 0, ty: 0, anim: null, center };
+
+  let tick = 0;
+  const step = () => {
+    tick++;
+    const alpha = Math.max(0.02, 0.9 * Math.pow(0.975, tick));
+
+    // 斥力
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        let dx = b.x - a.x, dy = b.y - a.y;
+        let d2 = dx * dx + dy * dy;
+        if (d2 < 1) { dx = Math.random() - .5; dy = Math.random() - .5; d2 = 1; }
+        const d = Math.sqrt(d2);
+        const f = Math.min(4200 / d2, 4.2) * alpha;
+        const ux = dx / d, uy = dy / d;
+        if (!a.fixedR) { a.x -= ux * f; a.y -= uy * f; }
+        if (!b.fixedR) { b.x += ux * f; b.y += uy * f; }
+      }
+    }
+    // 引力（边）
+    for (const e of edges) {
+      const dx = e.t.x - e.s.x, dy = e.t.y - e.s.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const want = 62;
+      const f = (d - want) * 0.0045 * alpha;
+      const ux = dx / d, uy = dy / d;
+      if (!e.s.fixedR) { e.s.x += ux * f * d * 0.5; e.s.y += uy * f * d * 0.5; }
+      if (!e.t.fixedR) { e.t.x -= ux * f * d * 0.5; e.t.y -= uy * f * d * 0.5; }
+    }
+    // 向心
+    for (const n of nodes) {
+      if (n.fixedR) continue;
+      n.x += (cx - n.x) * 0.0016 * alpha * 6;
+      n.y += (cy - n.y) * 0.0016 * alpha * 6;
+    }
+
+    draw();
+    if (tick < 320) SIM.anim = requestAnimationFrame(step);
+  };
+  step();
+}
+
+function draw() {
+  const W = cv.clientWidth, H = cv.clientHeight;
+  ctx.clearRect(0, 0, W, H);
+
+  const { nodes, links, scale, tx, ty } = SIM;
+
+  ctx.save();
+  ctx.translate(tx, ty);
+  ctx.scale(scale, scale);
+
+  // 边
+  for (const e of links) {
+    if (e === SELECTED_EDGE || e === HOVER_EDGE) continue;
+    const isRel = e.type === 'relates';
+    ctx.beginPath();
+    ctx.moveTo(e.s.x, e.s.y);
+    ctx.lineTo(e.t.x, e.t.y);
+    ctx.strokeStyle = isRel ? '#C7D2FE' : (e.strength === '弱' ? 'rgba(14,122,92,.16)' : 'rgba(14,122,92,.32)');
+    ctx.lineWidth = isRel ? 0.8 : (e.strength === '弱' ? 0.7 : 1.1);
+    if (isRel) ctx.setLineDash([3, 3]); else ctx.setLineDash([]);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // 悬停 / 被选中的边画在普通边之上。
+  // 关系有方向的才画箭头——对称关系（形式类比、并列定理等）画箭头是在说谎。
+  for (const [e, strong] of [[HOVER_EDGE, false], [SELECTED_EDGE, true]]) {
+    if (!e || !e.s || !e.t) continue;
+    const isRel = e.type === 'relates';
+    ctx.beginPath();
+    ctx.moveTo(e.s.x, e.s.y);
+    ctx.lineTo(e.t.x, e.t.y);
+    ctx.strokeStyle = strong ? '#0E7A5C' : 'rgba(14,122,92,.5)';
+    ctx.lineWidth = strong ? 2.6 : 1.8;
+    ctx.setLineDash(isRel ? [3, 3] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (strong) {
+      // 两端各加一圈，让"这条边连着谁"一目了然
+      for (const n of [e.s, e.t]) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r + 5, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(14,122,92,.45)'; ctx.lineWidth = 1.6; ctx.stroke();
+      }
+      if (e.relation && !e.relation.symmetric) arrowHead(e);
+    }
+  }
+
+  // 节点
+  for (const n of nodes) {
+    const sel = n.id === SELECTED;
+    const inRoot = ROOTSEL.has(n.id);
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.r * (sel ? 1.55 : 1), 0, Math.PI * 2);
+    ctx.fillStyle = CH_COLOR[n.chapterId] || '#64748B';
+    ctx.globalAlpha = sel ? 1 : 0.88;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    if (sel) {
+      ctx.strokeStyle = '#0E7A5C'; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.strokeStyle = 'rgba(14,122,92,.35)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r * 2.4, 0, Math.PI * 2); ctx.stroke();
+    } else if (inRoot) {
+      ctx.strokeStyle = '#B45309'; ctx.lineWidth = 2; ctx.stroke();
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  }
+
+  // 标签
+  ctx.font = '11px -apple-system, "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  for (const n of nodes) {
+    const important = n.r > 7.6 || n.id === SELECTED;
+    if (!important) continue;
+    const label = n.name.length > 13 ? n.name.slice(0, 12) + '…' : n.name;
+    const w = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(255,255,255,.86)';
+    ctx.fillRect(n.x - w / 2 - 3, n.y + n.r + 2, w + 6, 13);
+    ctx.fillStyle = n.id === SELECTED ? '#0A5C45' : '#334155';
+    ctx.fillText(label, n.x, n.y + n.r + 12);
+  }
+
+  ctx.restore();
+}
+
+/* 交互 */
+let drag = null;
+cv.addEventListener('mousedown', (e) => {
+  const p = toWorld(e);
+  const hit = hitNode(p);
+  if (hit) { drag = { node: hit, moved: false }; hit.fixedR = true; }
+  else drag = { pan: true, x: e.clientX, y: e.clientY, moved: false };
+  cv.classList.add('grabbing');
+});
+cv.addEventListener('mousemove', (e) => {
+  if (!drag) {
+    // 悬停反馈：鼠标压到边上就变手型并高亮那条边，否则用户根本不知道边是可点的
+    const p = toWorld(e);
+    const h = hitNode(p) ? null : hitEdge(p);
+    if (h !== HOVER_EDGE) { HOVER_EDGE = h; draw(); }
+    cv.style.cursor = h ? 'pointer' : '';
+    return;
+  }
+  if (drag.node) {
+    const p = toWorld(e);
+    drag.node.x = p.x; drag.node.y = p.y; drag.moved = true;
+    draw();
+  } else if (drag.pan) {
+    SIM.tx += e.clientX - drag.x; SIM.ty += e.clientY - drag.y;
+    drag.x = e.clientX; drag.y = e.clientY; drag.moved = true;
+    draw();
+  }
+});
+window.addEventListener('mouseup', (e) => {
+  if (!drag) return;
+  if (drag.node) {
+    drag.node.fixedR = drag.node.id === SIM.center;
+    if (!drag.moved) selectNode(drag.node.id);
+  } else if (drag.pan && !drag.moved) {
+    // 没拖动就当成点击：节点优先，其次才是边
+    const p = toWorld(e);
+    const node = hitNode(p);
+    if (node) { selectNode(node.id); }
+    else {
+      const edge = hitEdge(p);
+      if (edge) selectEdge(edge);
+      else closeEdgeCard();
+    }
+  }
+  drag = null; cv.classList.remove('grabbing');
+});
+cv.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const f = e.deltaY < 0 ? 1.1 : 0.91;
+  SIM.scale = Math.min(3.2, Math.max(0.32, SIM.scale * f));
+  draw();
+}, { passive: false });
+
+function toWorld(e) {
+  const r = cv.getBoundingClientRect();
+  return {
+    x: ((e.clientX - r.left) - SIM.tx) / SIM.scale,
+    y: ((e.clientY - r.top) - SIM.ty) / SIM.scale,
+  };
+}
+function hitNode(p) {
+  for (let i = SIM.nodes.length - 1; i >= 0; i--) {
+    const n = SIM.nodes[i];
+    if (Math.hypot(n.x - p.x, n.y - p.y) <= n.r + 5) return n;
+  }
+  return null;
+}
+
+/** 箭头：画在终点节点的边界上，指向依赖方 */
+function arrowHead(e) {
+  const dx = e.t.x - e.s.x, dy = e.t.y - e.s.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const ux = dx / d, uy = dy / d;
+  const tipX = e.t.x - ux * (e.t.r + 3), tipY = e.t.y - uy * (e.t.r + 3);
+  const L = 10, Wd = 5.6;
+  const bx = tipX - ux * L, by = tipY - uy * L;
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(bx - uy * Wd, by + ux * Wd);
+  ctx.lineTo(bx + uy * Wd, by - ux * Wd);
+  ctx.closePath();
+  ctx.fillStyle = '#0E7A5C';
+  ctx.fill();
+}
+
+/* ---------- 边的命中：点到线段的最近距离 ---------- */
+/**
+ * 线只有 0.7~1.1px 宽，按视觉宽度做命中几乎点不中。
+ * 所以用几何算「点到线段的最近距离」，阈值按 **屏幕像素** 给，
+ * 再换算回世界坐标——这样缩放到任何倍率，手感都一样。
+ */
+function distToSeg(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const L2 = dx * dx + dy * dy;
+  let t = L2 ? ((p.x - a.x) * dx + (p.y - a.y) * dy) / L2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+function hitEdge(p, tolPx = 7) {
+  const tol = tolPx / (SIM.scale || 1);
+  let best = null, bestD = tol;
+  for (const e of SIM.links) {
+    if (!e.s || !e.t) continue;
+    const d = distToSeg(p, e.s, e.t);
+    if (d < bestD) { bestD = d; best = e; }
+  }
+  return best;
+}
+
+/* ---------- 点边看关系 ---------- */
+function selectEdge(edge) {
+  if (!edge) return;
+  SELECTED_EDGE = edge;
+  renderEdgeCard(edge);
+  draw();
+}
+
+function closeEdgeCard() {
+  SELECTED_EDGE = null;
+  const c = $('#ecard');
+  c.classList.remove('on');
+  c.innerHTML = '';
+  draw();
+}
+
+/** 把读法模板里的「A」「B」换成两端的节点名 */
+function fillReading(tpl, a, b) {
+  if (!tpl) return null;
+  return tpl.replace(/「A」/g, `「${a}」`).replace(/「B」/g, `「${b}」`);
+}
+
+function renderEdgeCard(e) {
+  const card = $('#ecard');
+  const r = e.relation;
+  if (!r) { closeEdgeCard(); return; }
+
+  const nm = (id) => (SIM.nodes.find((n) => n.id === id) || {}).name || id;
+  const A = nm(e.source), B = nm(e.target);
+
+  const props = [r.symmetric ? '对称' : '有方向', r.transitive ? '可传递' : '不可传递'];
+  if (r.allowsCycle) props.push('允许成环');
+  if (e.strength) props.push('强度：' + e.strength);
+  if (e.kind && r.via === 'migration') props.push('由原标签「' + e.kind + '」归入');
+  else if (e.kind) props.push('标签：' + e.kind);
+
+  const basis = e.reason ?? e.note ?? '';
+  const read = fillReading(r.readingTemplate, A, B);
+  const arrow = r.symmetric ? '〜' : '→';
+
+  card.innerHTML =
+    `<div class="ec-head">
+       <span class="ec-rel">${esc(r.zh)}</span>
+       <span class="ec-std ${r.standard === 'skos' ? 'skos' : 'domain'}">${esc(r.skosRef ?? r.standardLabel)}</span>
+       <span class="ec-x" id="ecx" title="关闭">×</span>
+     </div>
+     <div class="ec-nodes">
+       <span class="ec-node" data-go="${esc(e.source)}">${esc(A)}</span>
+       <span class="ec-arrow">${arrow}</span>
+       <span class="ec-node" data-go="${esc(e.target)}">${esc(B)}</span>
+       ${read ? `<div class="ec-quiet" style="margin-top:6px">${esc(read)}</div>` : ''}
+     </div>
+     <div class="ec-meta">${props.map((p) => `<span class="ec-tag">${esc(p)}</span>`).join('')}</div>
+     ${r.isFallback ? '<div class="ec-meta"><span class="ec-tag warn">兜底类：尚未归入更具体的类型，建议复核</span></div>' : ''}
+     <div class="ec-lbl">依据原文</div>
+     ${basis ? `<div class="ec-body">${esc(basis)}</div>` : '<div class="ec-quiet">这条边没有写依据说明。</div>'}
+     <div class="ec-lbl">关系归属</div>
+     <div class="ec-quiet">${esc(r.familyZh)} · ${esc(r.standardLabel)}${r.skosRef ? '' : ' · ' + esc(r.en)}</div>
+     <div class="ec-foot">点两端节点名可跳到它的详情 · Esc 关闭</div>`;
+
+  card.classList.add('on');
+  card.querySelector('#ecx').onclick = closeEdgeCard;
+  card.querySelectorAll('.ec-node').forEach((el) => {
+    el.onclick = () => selectNode(el.dataset.go);
+  });
+}
+
+/* ---------- 关系词表（SKOS 13 种） ---------- */
+async function relations() {
+  if (!CATALOG) CATALOG = await api('relations');
+  return CATALOG;
+}
+
+async function toggleSkos(force) {
+  const p = $('#skospanel');
+  const show = force ?? !p.classList.contains('on');
+  if (!show) { p.classList.remove('on'); return; }
+
+  const c = await relations();
+  const skos = c.skos;
+  const byGroup = {};
+  skos.relations.forEach((r) => { (byGroup[r.group] ||= []).push(r); });
+  const order = ['labeling', 'semantic', 'mapping'];
+
+  // 三种"未用"要分开数——把它们混成一个"缺口"是最容易犯的错
+  const n = (st) => skos.relations.filter((r) => r.status === st).length;
+  const labels = skos.statusLabels ?? {};
+  const inUse = n('in-use'), equiv = n('equivalent');
+  const byDesign = n('by-design'), gap = n('data-gap'), vocab = n('needs-vocab');
+  const domainTypes = c.types.filter((t) => t.standard === 'domain');
+
+  // why 里允许用 **粗体** 强调（先转义再替换，不会带进可执行标签）
+  const whyHtml = (s) => esc(s ?? '').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+
+  p.innerHTML =
+    `<div class="skos-head">
+       <b>关系词表</b><span class="ec-std skos">W3C SKOS</span>
+       <span class="ec-x" id="skosx" title="关闭">×</span>
+     </div>
+     <div class="sub">${esc(skos.standard)}，${esc(skos.spec)}。SKOS 原生关系共 <b>13</b> 种，分三组。
+       下面是全部 13 种及各自在本图谱里的实际状态：<br>
+       <b>${inUse}</b> 种作为边在用 · <b>${equiv}</b> 种等效实现（未建边）·
+       其余 <b>${byDesign + gap + vocab}</b> 种未用，但原因分三类，不是同一回事：
+       规范不该建 ${byDesign} · 缺数据 ${gap} · 缺第二套词表 ${vocab}。</div>
+     ${order.map((g) => `
+        <h5>${esc(skos.groups[g])}</h5>
+        ${(byGroup[g] ?? []).map((r) => `
+          <div class="r st-${esc(r.status)}">
+            <code>${esc(r.skos)}</code><b>${esc(r.zh)}</b>
+            <span class="st">${esc(labels[r.status] ?? r.status)}</span>
+          </div>
+          <div class="r-why">${whyHtml(r.why)}</div>`).join('')}`).join('')}
+     <div class="note">${whyHtml(skos.whyUnused ?? '')}</div>
+     <div class="note">${esc(skos.notInSkos ?? '')}领域扩展共 ${domainTypes.length} 种，分 ${Object.keys(c.families).length} 族。
+       点开图谱里任意一条边，就能看到它属于哪一种。</div>`;
+  p.classList.add('on');
+  p.querySelector('#skosx').onclick = () => p.classList.remove('on');
+}
+
+$('#skosbtn').onclick = () => toggleSkos();
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeEdgeCard(); $('#skospanel').classList.remove('on'); }
+});
+
+document.querySelectorAll('.chip').forEach((c) => {
+  c.onclick = () => loadGraph(c.dataset.scope);
+});
+
+/* ============ 知识点详情 ============ */
+/**
+ * 推导链渲染（Graph C）
+ *
+ * 回答的不是「该先学谁」，而是「数学上怎么推出来」——所以展示方式也不同：
+ * 每个台阶除了节点名，还要给出**推导动作**与**可展开的步骤**。
+ */
+function renderDerivation(d) {
+  if (!d) return '';
+  const TYPE_ZH = { Equation: '方程', Solution: '解', Condition: '前提', Quantity: '物理量' };
+
+  /**
+   * 判断一个式子该不该用行间公式。
+   *
+   * 依据是「一行放不下」：多式并列（\quad / \qquad 分隔，如麦克斯韦方程组四条）
+   * 或本身就长（如带二阶偏导的波动方程）。这类式子走行内会挤成一小团、
+   * 甚至连分数都压成斜杠形式，读不清。
+   * 短式子（\vec{E}、\omega）继续走行内——否则每个节点都会撑成一大块，链就散了。
+   */
+  const isWide = (tex) => {
+    const s = String(tex);
+    return s.length > 40 || /\\qquad|\\quad|\\\\/.test(s);
+  };
+
+  const nodeHtml = (n, extraCls) => {
+    const canJump = n.kp && n.kp !== d.kp;
+    const tag = TYPE_ZH[n.type] ?? n.type ?? '';
+    return `<div class="dnode ${extraCls ?? ''}${canJump ? ' clickable' : ''}"`
+      + (canJump ? ` onclick="selectNode('${jsq(n.kp)}')"` : '')
+      + '>'
+      + `<span class="dname">${esc(n.name)}</span> `
+      + `<span class="pill ${n.type === 'Condition' ? 'warn' : ''}" style="margin-left:4px">${esc(tag)}</span>`
+      + (n.expr ? `<div class="dexpr">${mathHtml(n.expr, isWide(n.expr))}</div>` : '')
+      + '</div>';
+  };
+
+  let html = '<div class="derive">'
+    + '<div class="dhead">它是怎么来的 '
+    + '<span class="pill" style="font-weight:400">Graph C · 数学推导</span></div>'
+    + '<div class="dsub">与上方「直接先修」不同：那里是教学顺序，这里是数学推导。</div>';
+
+  if (d.pending > 0) {
+    html += `<div class="dreview">本链含 <b>${d.pending}</b> 条尚未经物理复核的推导边，'
+      + '仅用于演示数据结构，请以教材为准。</div>`;
+  }
+
+  html += nodeHtml({ ...d.node, kp: d.kp }, 'start');
+
+  const shown = new Set([d.node.id]);
+  for (const lv of d.levels) {
+    for (const e of lv.edges) {
+      const repeated = shown.has(e.from.id);
+      html += '<div class="dlink">'
+        + `<span class="drel">← ${esc(e.relZh)}</span>`
+        + `<span class="dsteps">${renderRich(e.steps)}`
+        + (repeated ? `　<span style="color:var(--faint)">（${esc(e.from.name)} 已在上方出现，说明这里有环）</span>` : '')
+        + '</span></div>';
+      if (!repeated) { html += nodeHtml(e.from, ''); shown.add(e.from.id); }
+    }
+  }
+
+  if (d.preconditions?.length) {
+    html += '<div class="dpre"><span class="dpre-h">本条链依赖的前提（去掉任何一条，上面的推导都不成立）</span>';
+    for (const p of d.preconditions) {
+      // 式子交给 KaTeX 渲染。这里原来是把 expr 当源码塞进 <code> 的，
+      // 界面上直接显示 \rho = 0,\quad \vec{J} = 0 —— 人读不了。
+      html += '<div class="dprow">'
+        + `<span class="dchip" title="${esc(p.to.note ?? p.to.name)}">${esc(p.to.name)}`
+        + (p.to.expr ? ` <span class="dchip-expr">${mathHtml(p.to.expr, false)}</span>` : '')
+        + '</span>'
+        // 这条前提到底起了什么作用，写成看得见的一行，而不是藏在鼠标浮层里
+        // （浮层用 note 而不是 steps：原生 title 不渲染 LaTeX）
+        + (p.steps ? `<span class="dwhy">${renderRich(p.steps)}</span>` : '')
+        + '</div>';
+    }
+    html += '</div>';
+  }
+
+  for (const c of d.cycles ?? []) {
+    // 环的成员在数据里是节点 id（cq_E）。摆给学生看的是名字，
+    // id 退回 title 里——调试时仍拿得到，界面上不再出现内部标识符。
+    const names = c.names ?? c.nodes ?? [];
+    html += '<div class="dcycle">⚠ 这一链上存在环：'
+      + `<b title="${esc((c.nodes ?? []).join(' ⇄ '))}">${esc(names.join(' ⇄ '))}</b>。`
+      + `${esc(c.why)}</div>`;
+  }
+
+  html += '<div class="dfoot">推导链由 <code>data/graph-c-derivation.json</code> 读取，'
+    + '反向回溯自「' + esc(d.node.name) + '」。每一条边都要求写出推导步骤——'
+    + '这是 Graph C 的校验目标（教学先修图校验的是无环）。</div></div>';
+  return html;
+}
+
+async function selectNode(id) {
+  SELECTED = id;
+  draw();
+  const d = await api('point/' + encodeURIComponent(id));
+  if (d.error) return;
+  const p = d.point;
+
+  let html = `<div style="display:flex;align-items:start;gap:8px">
+      <h4 style="margin:0;flex:1">${esc(p.name)}</h4>
+      <div class="pill gray">${esc(p.difficulty)}</div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin:6px 0 10px">
+      ${esc(p.chapter?.no ?? '')} ${esc(p.chapter?.title ?? '')} · ${esc(p.section?.no ?? '')} ${esc(p.section?.title ?? '')}<br>
+      教材：${esc(p.textbookRef || '—')}
+    </div>`;
+  html += `<div class="kv"><div class="k">定义</div><div class="v">${esc(p.definition)}</div></div>`;
+
+  if (p.keyPoints?.length) {
+    html += `<h4>要点</h4><ul class="plain">` +
+      p.keyPoints.map((k) => `<li>${esc(k)}</li>`).join('') + `</ul>`;
+  }
+  if (p.formulas?.length) {
+    html += `<h4>关键公式</h4>` + p.formulas.map((f) =>
+      `<div class="formula"><span class="nm">${esc(f.name)}</span>${mathHtml(f.latex, true)}` +
+      (f.note ? `<div style="font-size:11.5px;color:var(--muted);margin-top:4px">${esc(f.note)}</div>` : '') +
+      `</div>`).join('');
+  }
+  if (d.prerequisites?.length) {
+    html += `<h4>直接先修</h4>` + d.prerequisites.map((u) =>
+      `<div class="chain"><div class="n" onclick="selectNode('${u.id}')">${esc(u.name)}` +
+      `<span class="pill ${u.strength === '弱' ? 'warn' : ''}" style="margin-left:6px">${esc(u.strength)}</span>` +
+      `<div class="r">${esc(u.reason)}</div></div></div>`).join('');
+  }
+  if (d.dependents?.length) {
+    html += `<h4>后续依赖它</h4>` + d.dependents.map((u) =>
+      `<div class="n" style="cursor:pointer;padding:5px 9px;background:var(--bg);border-radius:6px;margin-bottom:4px;font-size:12.5px"
+        onclick="selectNode('${u.id}')">${esc(u.name)}</div>`).join('');
+  }
+  if (d.related?.length) {
+    html += `<h4>关联</h4>` + d.related.map((u) =>
+      `<div style="font-size:12.5px;margin-bottom:5px">
+        <span class="pill">${esc(u.kind)}</span>
+        <span style="cursor:pointer;color:var(--green)" onclick="selectNode('${u.id}')">${esc(u.name)}</span>
+        <div style="color:var(--muted);font-size:11.5px">${esc(u.note)}</div></div>`).join('');
+  }
+
+  html += renderDerivation(d.derivation);
+
+  html += `<div style="display:flex;gap:6px;margin-top:14px">
+      <button class="send" style="flex:1;padding:7px" onclick="showTrace('${p.id}')">回溯先修链</button>
+      <button class="send" style="flex:1;padding:7px;background:#B45309" onclick="addRoot('${p.id}','${jsq(p.name)}')">加入诊断</button>
+    </div>
+    <div id="tracebox"></div>`;
+
+  $('#detail').innerHTML = html;
+  tab('detail');
+}
+
+async function showTrace(id) {
+  const box = $('#tracebox');
+  box.innerHTML = '<div class="loading">回溯中…</div>';
+  const d = await api('trace?id=' + encodeURIComponent(id) + '&depth=3');
+  if (!d.levels?.length) { box.innerHTML = '<div style="font-size:12.5px;color:var(--muted);margin-top:8px">这是基础节点，没有先修。</div>'; return; }
+  let html = '<h4>先修链（第 1 层最靠近它，越往下越基础）</h4><div class="chain">';
+  d.levels.forEach((lv, i) => {
+    html += `<div class="lv"><div class="t">第 ${i + 1} 层</div>`;
+    for (const n of lv) {
+      html += `<div class="n" onclick="selectNode('${n.id}')">${esc(n.name)}` +
+        `<span class="pill ${n.weakest === '弱' ? 'warn' : ''}" style="margin-left:6px">${n.weakest === '强' ? '硬前提' : '弱关联'}</span>` +
+        `<div class="r">${esc(n.reason)}</div></div>`;
+    }
+    html += '</div>';
+  });
+  box.innerHTML = html + '</div>';
+}
+
+/* ============ 根因诊断 ============ */
+function addRoot(id, name) {
+  ROOTSEL.add(id);
+  renderSymp();
+  tab('roots');
+  draw();
+}
+function renderSymp() {
+  const box = $('#symp');
+  if (!ROOTSEL.size) { box.innerHTML = '<div style="font-size:12.5px;color:var(--faint)">还没有选中知识点。到「知识点」页点「加入诊断」。</div>'; return; }
+  box.innerHTML = [...ROOTSEL].map((id) =>
+    `<span class="pill" style="cursor:pointer" onclick="ROOTSEL.delete('${id}');renderSymp();draw()">` +
+    `${esc(SIM.nodes.find((n) => n.id === id)?.name || id)} ✕</span>`).join('');
+}
+$('#doroots').onclick = async () => {
+  if (!ROOTSEL.size) return;
+  const out = $('#rootout');
+  out.innerHTML = '<div class="loading">回溯先修链…</div>';
+  const d = await api('roots?ids=' + [...ROOTSEL].join(',') + '&depth=3');
+  if (!d.roots?.length) { out.innerHTML = '<div style="font-size:12.5px;color:var(--muted)">未找到共同先修，这些症状可能彼此独立。</div>'; return; }
+  let html = '<h4>候选根因（按支撑面排序）</h4>';
+  for (const r of d.roots.slice(0, 8)) {
+    const tags = [];
+    if (r.supportedCount > 1) tags.push('<span class="pill">共同根因</span>');
+    tags.push(`<span class="pill ${r.isHardPrerequisite ? '' : 'warn'}">${r.isHardPrerequisite ? '硬前提' : '弱关联'}</span>`);
+    if (r.isSymptomItself) tags.push('<span class="pill gray">本身也是症状</span>');
+    html += `<div class="n" style="background:var(--bg);border-radius:8px;padding:9px 11px;margin-bottom:8px;cursor:pointer"
+        onclick="selectNode('${r.id}')">
+      <div style="font-size:13px;font-weight:500">${esc(r.name)}</div>
+      <div style="margin:5px 0">${tags.join('')}<span class="pill gray">${esc(r.chapterId)} · 第${r.level}层</span></div>
+      <div style="font-size:11.5px;color:var(--muted)">支撑了 ${r.supportedCount} / ${d.symptoms.length} 个症状</div>
+      ${r.reasons.map((x) => `<div style="font-size:11.5px;color:var(--muted);margin-top:3px">· ${esc(x)}</div>`).join('')}
+    </div>`;
+  }
+  out.innerHTML = html;
+};
+
+/* ============ 标签页 ============ */
+function tab(name) {
+  document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.dataset.pane === name));
+  document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('on', p.id === 'pane-' + name));
+}
+document.querySelectorAll('.tab').forEach((t) => { t.onclick = () => tab(t.dataset.pane); });
+
+// hash 深链接：视图范围（启动时已用）、选中知识点、选中边、词表面板、标签页。
+// 便于分享链接，也便于自动化截图验收。
+{
+  if (HP.node) {
+    // 图谱数据是异步加载的，轮询等它就绪再选中
+    const trySelect = () => {
+      if (SIM.nodes?.length) selectNode(HP.node);
+      else setTimeout(trySelect, 150);
+    };
+    trySelect();
+  }
+  if (HP.edge) {
+    const [from, to] = HP.edge.split('|');
+    const tryEdge = () => {
+      if (!SIM.links?.length) return setTimeout(tryEdge, 150);
+      const e = SIM.links.find((l) => l.source === from && l.target === to);
+      if (e) selectEdge(e);
+      else setTimeout(tryEdge, 150);
+    };
+    tryEdge();
+  }
+  if (HP.skos) toggleSkos(true);
+  const tabName = HP.tab || Object.keys(HP).find((k) => document.getElementById('pane-' + k));
+  if (tabName && document.getElementById('pane-' + tabName)) tab(tabName);
+}
+
+/* ============ 答疑 ============ */
+const log = $('#log');
+let busy = false;
+
+function pushMe(text) {
+  const el = document.createElement('div');
+  el.className = 'msg me';
+  el.innerHTML = `<div class="meta">我</div><div class="bubble">${esc(text)}</div>`;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+function pushAI() {
+  const el = document.createElement('div');
+  el.className = 'msg ai';
+  el.innerHTML = `<div class="meta">助教</div><div class="bubble"><span class="loading">思考中<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span></div>`;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+  return el.querySelector('.bubble');
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+/** 放进内联 onclick 的 JS 字符串里，单双引号都要挡住 */
+function jsq(s) { return String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+/* ---------- LaTeX 渲染 ---------- */
+/** 渲染一段裸 LaTeX。失败时降级显示源码，绝不让整条回答崩掉 */
+function mathHtml(tex, display) {
+  try {
+    return katex.renderToString(String(tex).trim(), {
+      displayMode: !!display,
+      throwOnError: false,
+      errorColor: '#B42318',
+      strict: false,
+      trust: false,
+    });
+  } catch (e) {
+    return `<code class="katex-error">${esc(tex)}</code>`;
+  }
+}
+
+/**
+ * 把混合文本里的数学渲染出来，同时保持其余内容被安全转义。
+ *
+ * 顺序很关键：必须**先从原始文本抽出数学段**再转义其余部分。
+ * 若先转义，LaTeX 里的 & < > 会变成实体（&amp; 等），KaTeX 就认不出对齐符了。
+ */
+function renderRich(rawText) {
+  let s = String(rawText ?? '');
+  const math = [];
+
+  const stash = (tex, display) => {
+    math.push({ tex, display });
+    return `\u0000M${math.length - 1}\u0000`;
+  };
+
+  // 代码块内的内容不渲染数学
+  const blocks = [];
+  s = s.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
+    blocks.push(m);
+    return `\u0000C${blocks.length - 1}\u0000`;
+  });
+
+  s = s.replace(/\$\$([\s\S]+?)\$\$/g, (m, tex) => stash(tex, true));
+  s = s.replace(/\\\[([\s\S]+?)\\\]/g, (m, tex) => stash(tex, true));
+  s = s.replace(/\$([^$\n]+?)\$/g, (m, tex) => stash(tex, false));
+  s = s.replace(/\\\(([\s\S]+?)\\\)/g, (m, tex) => stash(tex, false));
+
+  s = esc(s);
+
+  // 引用标记（esc 不会动方括号，直接替换）
+  s = s.replace(/\[\[(KG|TXT|WEB):([^\]|]+)(?:\|([^\]]*))?\]\]/g,
+    (m, k, id, label) =>
+      `<span class="cite ${k === 'TXT' ? 'tb' : ''}" onclick="selectNode('${jsq(id)}')">`
+      + `${esc(label || id)}</span>`);
+
+  s = s.replace(/\n/g, '<br>');
+  s = s.replace(/\u0000M(\d+)\u0000/g, (m, i) => mathHtml(math[Number(i)].tex, math[Number(i)].display));
+  s = s.replace(/\u0000C(\d+)\u0000/g, (m, i) => `<code>${esc(blocks[Number(i)].replace(/^```|```$/g, '').replace(/^`|`$/g, ''))}</code>`);
+
+  return s;
+}
+
+async function ask(text) {
+  if (busy || !text.trim()) return;
+  busy = true; $('#send').disabled = true;
+  clearEmpty();
+  pushMe(text);
+  const bubble = pushAI();
+
+  try {
+    const res = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: text, focusIds: SELECTED ? [SELECTED] : [] }),
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', raw = '', segments = null, summary = null, focus = [], reason = '';
+
+    const handle = (chunk) => {
+      buf += chunk;
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const part = buf.slice(0, i).trim();
+        buf = buf.slice(i + 2);
+        if (!part.startsWith('data:')) continue;
+        let ev;
+        try { ev = JSON.parse(part.slice(5).trim()); } catch { continue; }
+        if (ev.type === 'text') {
+          raw += ev.content;
+          bubble.innerHTML = renderStream(raw) +
+            (raw ? '' : '<span class="loading">生成中…</span>');
+          log.scrollTop = log.scrollHeight;
+        } else if (ev.type === 'reasoning') {
+          reason += ev.content;
+          if (!raw) {
+            bubble.innerHTML =
+              `<div class="thinking">思考中 ${reason.length} 字…</div>`;
+          }
+        } else if (ev.type === 'init') {
+          focus = ev.focus || [];
+        } else if (ev.type === 'segments') {
+          segments = ev.segments; summary = ev.summary;
+        } else if (ev.type === 'error') {
+          bubble.innerHTML = `<span style="color:var(--red)">出错：${esc(ev.message)}</span>`;
+        }
+      }
+    };
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      handle(dec.decode(value, { stream: true }));
+    }
+    handle(dec.decode());
+
+    if (segments && summary) {
+      bubble.innerHTML = renderSegments(segments, summary, focus, reason);
+      log.scrollTop = log.scrollHeight;
+    }
+  } catch (e) {
+    bubble.innerHTML = `<span style="color:var(--red)">请求失败：${esc(e.message)}</span>`;
+  } finally {
+    busy = false; $('#send').disabled = false;
+  }
+}
+
+function renderStream(t) {
+  return renderRich(t);
+}
+
+function renderSegments(segments, summary, focus, reason) {
+  const SRC = { graph: ['graph', ''], textbook: ['textbook', 'tb'], web: ['web', ''], inferred: ['inferred', ''] };
+  let html = '';
+  if (focus?.length) {
+    html += `<div style="font-size:11.5px;color:var(--muted);margin-bottom:8px">`
+      + `定位到知识点：${focus.map((f) => `<span class="pill">${esc(f.name)}</span>`).join('')}</div>`;
+  }
+  if (reason) {
+    html += `<details style="margin-bottom:8px">`
+      + `<summary style="font-size:11.5px;color:var(--faint);cursor:pointer">思考过程（${reason.length} 字）</summary>`
+      + `<div style="font-size:11.5px;color:var(--muted);background:var(--card);border-radius:6px;padding:8px;margin-top:5px;white-space:pre-wrap;max-height:180px;overflow:auto">${esc(reason)}</div>`
+      + `</details>`;
+  }
+  for (const s of segments) {
+    const cls = s.source === 'inferred' ? 'inferred' : SRC[s.source][0];
+    let cites = '';
+    for (const c of s.citations) {
+      if (!c.valid) {
+        cites += `<span class="cite bad" title="该节点 ID 在图谱中不存在，已被拦截">无效引用 ${esc(c.nodeId)}</span>`;
+      } else if (c.kind !== 'WEB') {
+        cites += `<span class="cite ${c.kind === 'TXT' ? 'tb' : ''}" onclick="selectNode('${c.nodeId}')">`
+          + `${esc(c.label || c.nodeId)}</span>`;
+      }
+    }
+    html += `<div class="sent ${cls}${s.invalidCitations.length ? ' bad' : ''}">${renderRich(s.text)}${cites}</div>`;
+  }
+
+  const g = summary.grounded, t = summary.textbook, w = summary.web, i = summary.inferred;
+  const tot = Math.max(summary.total, 1);
+  html += `<div class="summary">
+      <div>依据覆盖率 <b>${summary.coverage}%</b>　共 ${summary.total} 句</div>
+      <div class="bar">
+        <i style="width:${g / tot * 100}%;background:var(--green)"></i>
+        <i style="width:${t / tot * 100}%;background:var(--blue)"></i>
+        <i style="width:${w / tot * 100}%;background:#7C3AED"></i>
+        <i style="width:${i / tot * 100}%;background:#CBD5E1"></i>
+      </div>
+      <div style="margin-top:5px">
+        <span style="color:var(--green)">▮</span> 图谱 ${g}　
+        <span style="color:var(--blue)">▮</span> 教材 ${t}　
+        <span style="color:#CBD5E1">▮</span> AI 推断 ${i}
+        ${summary.invalid ? `　<span style="color:var(--red)">无效引用 ${summary.invalid}</span>` : ''}
+      </div>
+      <div style="margin-top:4px;font-size:11.5px;color:var(--faint)">
+        引用节点：${summary.nodeIds.slice(0, 8).join('、') || '（无）'}
+      </div>
+    </div>`;
+  return html;
+}
+
+// 发送入口与快捷问题在文件末尾统一接线（见 sendUser / setSampleMode）
+
+/* ============ 拍照解题（并入答疑窗口） ============
+ *
+ * 不再单独占一个 tab：拍照入口挂在答疑输入框左侧，识别结果与后续引导
+ * 都直接落在同一个对话流里。好处是学生不用在"问问题"和"传作业"之间切换，
+ * 追问也在同一段上下文里继续。
+ */
+const HW = {
+  image: null,        // data URL
+  problem: null,      // 诊断完成的题目（含 diagnosis / roots / nodes）；非空即"题目模式"
+  preview: null,      // 识别阶段的题目（题干 + 解答），先给用户核对
+  opening: '',        // 开场引导
+  warnings: [],       // 单题约束提示（图中有多题 / 没识别到题目）
+  leakFlags: [],      // 解答泄露信号
+  vision: null,       // 识别元信息（模型 / 耗时 / 图片大小）
+  history: [],        // 引导对话历史（只给后端拼上下文用）
+  quality: null,      // 上传前的图像质量预检结果
+  busy: false,
+  resultEl: null,     // 本次分析所在的助教消息 bubble
+  bodyEl: null,       // 结果正文容器（进度条/阶段之外）
+  stageEl: null,      // 该消息内的阶段列表容器
+  pg: null,           // 该消息内的进度条元素引用
+};
+
+const hwfile = $('#hwfile');
+const attachBtn = $('#attach');
+
+attachBtn.onclick = () => { if (!HW.busy) hwfile.click(); };
+hwfile.onchange = () => {
+  const f = hwfile.files?.[0];
+  hwfile.value = '';           // 清掉，同一张图重选也能触发 change
+  if (f) startOcr(f);
+};
+
+// 支持直接把图片拖进对话区
+const logEl = $('#log');
+['dragenter', 'dragover'].forEach((ev) =>
+  logEl.addEventListener(ev, (e) => { e.preventDefault(); }));
+logEl.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const f = e.dataTransfer?.files?.[0];
+  if (f) startOcr(f);
+});
+
+/**
+ * 上传前的图像质量预检。
+ *
+ * 为什么值得做：翻拍质量是识别成败的第一因素，但整条链路要跑 60~190 秒
+ * 才知道照片不合格。不如在这里用几百毫秒先粗检一遍——
+ * 分辨率不足、整体偏暗、对比度过低、明显反光/过曝，都是能当场发现并让用户重拍的。
+ *
+ * 这里只看**全图的统计特征**，不做版面分析（不找文字区域、不判断倾斜）。
+ * 那些需要真正的 CV，成本高且容易误判；把简单可靠的信号抓准就够了。
+ *
+ * @returns {{level:'ok'|'warn'|'bad', issues:string[], metrics:object}}
+ */
+function checkImageQuality(img) {
+  const W = img.naturalWidth, H = img.naturalHeight;
+
+  // 缩到长边 400 再统计，够用且快（原图几千万像素直接遍历会很卡）
+  const N = 400;
+  const s = Math.min(N / Math.max(W, H), 1);
+  const w = Math.max(1, Math.round(W * s)), h = Math.max(1, Math.round(H * s));
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, w, h);
+  let px;
+  try { px = ctx.getImageData(0, 0, w, h).data; }
+  catch { return { level: 'ok', issues: [], metrics: {} }; } // 跨域图不让读像素，直接放行
+
+  // 灰度直方图 + 亮度总和
+  const hist = new Float64Array(256);
+  let sum = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+    hist[g | 0]++; sum += g;
+  }
+  const total = w * h;
+  const mean = sum / total;
+
+  // 标准差：衡量对比度。低对比度意味着字和纸的分界模糊，OCR 最容易崩
+  let varSum = 0;
+  for (let v = 0; v < 256; v++) varSum += hist[v] * (v - mean) ** 2;
+  const std = Math.sqrt(varSum / total);
+
+  // 过曝/死黑比例：反光和阴影的直接信号
+  let blown = 0, dark = 0;
+  for (let v = 245; v < 256; v++) blown += hist[v];
+  for (let v = 0; v < 12; v++) dark += hist[v];
+  const blownPct = blown / total, darkPct = dark / total;
+
+  // 长边像素：课本一页约 15cm 宽，要看清 12pt 公式下标，长边至少要有 1200px
+  const longEdge = Math.max(W, H);
+
+  const issues = [];
+  let level = 'ok';
+
+  if (longEdge < 900) {
+    level = 'bad';
+    issues.push(`分辨率太低（长边只有 ${longEdge}px）。课本上的公式下标会糊成一团，请用原图重拍，别用截图或缩略图。`);
+  } else if (longEdge < 1400) {
+    if (level === 'ok') level = 'warn';
+    issues.push(`分辨率偏低（长边 ${longEdge}px）。如果是拍紧凑的公式，建议重拍一张更近的。`);
+  }
+
+  if (mean < 60) {
+    level = 'bad';
+    issues.push(`整张照片太暗（平均亮度 ${mean.toFixed(0)}/255）。请在光线充足处重拍，或打开闪光灯。`);
+  } else if (mean < 95) {
+    if (level !== 'bad') level = 'warn';
+    issues.push(`照片偏暗（平均亮度 ${mean.toFixed(0)}/255），阴影会让公式笔画粘连。换到亮处重拍更稳。`);
+  }
+
+  if (std < 28) {
+    level = 'bad';
+    issues.push(`对比度过低（${std.toFixed(0)}）。字和纸几乎分不开，识别会大面积失败——请对焦清楚再拍。`);
+  } else if (std < 38) {
+    if (level !== 'bad') level = 'warn';
+    issues.push(`对比度偏低（${std.toFixed(0)}）。注意对焦，让字迹边缘清晰。`);
+  }
+
+  if (blownPct > 0.08) {
+    if (level !== 'bad') level = 'warn';
+    issues.push(`画面有约 ${(blownPct * 100).toFixed(0)}% 的区域过曝发白，通常是反光。换个角度避开灯光或窗户的反射。`);
+  }
+  if (darkPct > 0.10) {
+    if (level !== 'bad') level = 'warn';
+    issues.push(`画面有约 ${(darkPct * 100).toFixed(0)}% 的区域接近全黑，可能是手指或阴影挡住了。拍摄时注意别挡住题目。`);
+  }
+
+  return { level, issues, metrics: { W, H, mean, std, blownPct, darkPct } };
+}
+
+/** 质量预检结果：就地插进消息流，不用 alert 打断 */
+function renderQuality(q) {
+  if (!q || q.level === 'ok' || !q.issues.length) return '';
+  const title = q.level === 'bad' ? '这张照片可能识别不好，建议重拍' : '照片质量一般，可能会影响识别';
+  return `<div class="qchk ${q.level}"><div class="qh">${title}</div>`
+    + `<ul>${q.issues.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>`;
+}
+
+function readAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = () => reject(new Error('读取文件失败'));
+    fr.readAsDataURL(file);
+  });
+}
+
+/** data URL → 已完成解码的 <img>，供质量预检读取像素 */
+function decodeImage(src) {
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => resolve(null);
+    im.src = src;
+  });
+}
+
+/** 忘掉当前题目，回到普通答疑 */
+function endProblem(quiet) {
+  HW.problem = null; HW.preview = null; HW.opening = '';
+  HW.warnings = []; HW.leakFlags = []; HW.history = [];
+  setSampleMode(false);
+  if (!quiet) pushSys('已结束这道题，后面的提问按普通答疑处理。');
+}
+window.endProblem = endProblem;
+
+/** 系统提示（居中灰字，不算对话轮次） */
+function pushSys(text) {
+  clearEmpty();
+  const el = document.createElement('div');
+  el.className = 'msg';
+  el.innerHTML = `<div class="bubble" style="background:transparent;color:var(--faint);font-size:12px;text-align:center">${esc(text)}</div>`;
+  logEl.appendChild(el);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+/** 首条消息落下时，移除占位说明 */
+function clearEmpty() {
+  const e = logEl.querySelector('.empty');
+  if (e) e.remove();
+}
+
+/** 有题目上下文时，快捷问题换成"追问"风格的 */
+function setSampleMode(on) {
+  const box = document.querySelector('#pane-ask .samples');
+  if (!box) return;
+  const items = on
+    ? ['我还是不懂，再提示一点', '我这一步为什么不对？', '这块基础要不要回去补？']
+    : ['为什么需要位移电流？', '推迟势是什么物理意义', '镜像法怎么用'];
+  box.innerHTML = items.map((t) => `<div class="sample">${t}</div>`).join('');
+  box.querySelectorAll('.sample').forEach((s) => {
+    s.onclick = () => { $('#q').value = s.textContent; sendUser(s.textContent); };
+  });
+}
+
+/* ---------- 阶段进度 + 进度条 ---------- */
+// 单题链路的固定阶段顺序。百分比按"阶段序号 / 总阶段数"推进，
+// 不按耗时加权——因为各阶段的实际耗时波动很大（模型推理长短不一），
+// 按时间估算反而会长时间卡在 60% 不动，观感更差。
+const STAGES = [
+  { key: 'recognize', label: '识别题目（公式转 LaTeX）', pct: 34 },
+  { key: 'locate', label: '图谱定位知识点', pct: 52 },
+  { key: 'diagnose', label: '核查解答', pct: 72 },
+  { key: 'roots', label: '回溯先修链', pct: 86 },
+  { key: 'guide', label: '生成反馈', pct: 96 },
+];
+const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.key, s.label]));
+const stageEls = new Map();
+
+/** 在这一条助教消息里挂一个进度条 */
+function mountProgress(container) {
+  const wrap = document.createElement('div');
+  wrap.className = 'pg-inline';
+  wrap.innerHTML =
+    `<div class="pg-head"><span class="pg-label">准备中…</span><span class="pg-pct">0%</span></div>`
+    + `<div class="pg-track"><div class="pg-fill running"></div></div>`;
+  container.appendChild(wrap);
+  HW.pg = {
+    wrap,
+    label: wrap.querySelector('.pg-label'),
+    pct: wrap.querySelector('.pg-pct'),
+    fill: wrap.querySelector('.pg-fill'),
+  };
+}
+
+function progressSet(pct, label) {
+  const pg = HW.pg;
+  if (!pg) return;
+  const v = Math.max(0, Math.min(100, pct));
+  pg.fill.style.width = `${v}%`;
+  pg.pct.textContent = `${Math.round(v)}%`;
+  if (label) pg.label.textContent = label;
+}
+
+function progressDone(err) {
+  const pg = HW.pg;
+  if (!pg) return;
+  pg.fill.classList.remove('running');
+  pg.wrap.classList.add(err ? 'err' : 'done');
+  progressSet(100, err ? '处理失败' : '完成');
+  // 成功时很快收起进度条，别占着地方；失败时多留一会儿让人看清
+  setTimeout(() => { if (HW.pg === pg) pg.wrap.style.display = 'none'; }, err ? 3000 : 700);
+}
+
+/** 阶段列表同样挂在消息里 */
+function mountStages(container) {
+  const box = document.createElement('div');
+  box.className = 'stages';
+  container.appendChild(box);
+  HW.stageEl = box;
+  stageEls.clear();
+}
+
+function stageUpdate(name, message, elapsed) {
+  if (!HW.stageEl) return;
+  if (!stageEls.has(name)) {
+    const el = document.createElement('div');
+    el.className = 'stage';
+    el.innerHTML = `<span class="dotmark"></span><span class="txt">${esc(STAGE_LABEL[name] ?? name)}</span><span class="t"></span>`;
+    HW.stageEl.appendChild(el);
+    stageEls.set(name, el);
+    // 上一阶段收尾
+    const prev = [...stageEls.keys()][[...stageEls.keys()].indexOf(name) - 1];
+    if (prev) stageEls.get(prev)?.classList.add('done');
+  }
+  const el = stageEls.get(name);
+  el.classList.add('on');
+  if (message) el.querySelector('.txt').textContent = stageText(name, message);
+  if (elapsed) el.querySelector('.t').textContent = elapsed + 's';
+
+  // 进度条跟着阶段走
+  const st = STAGES.find((s) => s.key === name);
+  if (st) progressSet(st.pct, message ? stageText(name, message) : st.label);
+}
+
+/**
+ * 阶段文案：避免出现「核查解答 · 核查解答…」这种自我重复。
+ * 阶段名本身已经说明了在做什么，message 只补状态。
+ */
+function stageText(name, message) {
+  const label = STAGE_LABEL[name] ?? name;
+  const m = String(message ?? '').trim();
+  if (!m) return label;
+  const bare = m.replace(/…+$/, '').trim();
+  if (bare === label || label.startsWith(bare)) return label;
+  return `${label} · ${m}`;
+}
+
+/**
+ * 心跳：长耗时阶段（核查中 / 生成中，各 20~60 秒）本身不产生任何事件，
+ * 没有这个的话进度条会干停住，看起来和卡死没有区别。
+ * 这里把"已耗时"持续写到阶段行与进度条上，让等待始终可见。
+ */
+function tickUpdate(name, elapsedSec) {
+  const el = stageEls.get(name);
+  if (el) el.querySelector('.t').textContent = `${elapsedSec}s`;
+  const st = STAGES.find((s) => s.key === name);
+  if (st) progressSet(st.pct, `${st.label} · 已 ${elapsedSec}s`);
+  HW.pg?.fill.classList.add('running');   // 保持流动感，暗示仍在跑
+}
+
+/**
+ * 拍照解题的完整入口：图片 → 质量预检 → 在对话流里跑完整条链路。
+ *
+ * 整条链路与原来一致（识别 → 图谱定位 → 核查 → 回溯先修 → 生成引导），
+ * 只是渲染目标从独立面板改成当前这条助教消息。
+ */
+async function startOcr(file) {
+  if (HW.busy) { pushSys('上一道题还在分析中，稍等一下。'); return; }
+  if (!/^image\//.test(file.type)) { pushSys('请选择图片文件。'); return; }
+  if (file.size > 4.5 * 1024 * 1024) {
+    pushSys(`图片 ${(file.size / 1024 / 1024).toFixed(1)} MB，超过 4.5 MB。请先裁剪或压缩——题目照片 1~2 MB 就足够清晰。`);
+    return;
+  }
+
+  HW.busy = true;
+  attachBtn.disabled = true;
+  attachBtn.classList.add('busy');
+  $('#send').disabled = true;
+  let watchdog = null;
+
+  clearEmpty();
+  setSampleMode(true);
+
+  try {
+    const dataUrl = await readAsDataURL(file);
+    HW.image = dataUrl;
+    HW.filename = file.name || 'problem.png';
+
+    // 质量预检：几百毫秒就能发现有问题的照片，不必等一分钟才知道白跑
+    const im = await decodeImage(dataUrl);
+    HW.quality = im ? checkImageQuality(im) : null;
+    if (HW.quality?.level === 'bad') {
+      const ok = confirm('这张照片质量偏差，识别结果可能不可用。\n\n'
+        + HW.quality.issues.join('\n') + '\n\n仍要现在开始吗？');
+      if (!ok) { HW.busy = false; attachBtn.disabled = false; attachBtn.classList.remove('busy'); $('#send').disabled = false; return; }
+    }
+
+    // 用户消息：缩略图 + 文件名，让用户确认传的是哪张
+    const me = document.createElement('div');
+    me.className = 'msg me';
+    me.innerHTML = `<div class="meta">我</div><div class="bubble">`
+      + `<img class="thumb" src="${dataUrl}" alt="题目照片">`
+      + `<div style="font-size:11.5px;color:var(--faint)">${esc(HW.filename)}</div></div>`;
+    logEl.appendChild(me);
+
+    // 助教消息：进度 + 阶段 + 结果都长在这一条里
+    const ai = document.createElement('div');
+    ai.className = 'msg ai';
+    ai.innerHTML = `<div class="meta">助教</div><div class="bubble"></div>`;
+    logEl.appendChild(ai);
+    const bubble = ai.querySelector('.bubble');
+    HW.resultEl = bubble;
+    logEl.scrollTop = logEl.scrollHeight;
+
+    const qh = renderQuality(HW.quality);
+    if (qh) bubble.insertAdjacentHTML('beforeend', qh);
+    mountProgress(bubble);
+    mountStages(bubble);
+    const body = document.createElement('div');
+    bubble.appendChild(body);
+    HW.bodyEl = body;
+    progressSet(4, '准备中…');
+
+    // 看门狗：服务端每 4 秒必推一次心跳。若 20 秒毫无动静，说明链路真的断了
+    // ——明确告诉用户，而不是让他对着不动的进度条干等。
+    let lastEvent = Date.now();
+    watchdog = setInterval(() => {
+      if (Date.now() - lastEvent <= 20000) return;
+      clearInterval(watchdog);
+      watchdog = null;
+      HW.bodyEl?.insertAdjacentHTML('beforeend',
+        '<div style="color:var(--red);font-size:12.5px">'
+        + '已经 20 秒没有收到服务端响应，链路可能中断了。请重新点 ＋ 再试一次。</div>');
+      progressDone(true);
+      HW.busy = false;
+      attachBtn.disabled = false;
+      attachBtn.classList.remove('busy');
+      $('#send').disabled = false;
+    }, 4000);
+    HW.onEvent = () => { lastEvent = Date.now(); };
+
+    HW.problem = null; HW.preview = null; HW.opening = '';
+    HW.warnings = []; HW.leakFlags = []; HW.history = [];
+
+    const res = await fetch('/api/homework/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: HW.image, filename: HW.filename }),
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+
+    const handle = (chunk) => {
+      buf += chunk;
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const part = buf.slice(0, i).trim();
+        buf = buf.slice(i + 2);
+        if (!part.startsWith('data:')) continue;
+        HW.onEvent?.();          // 喂看门狗
+        let ev; try { ev = JSON.parse(part.slice(5).trim()); } catch { continue; }
+
+        if (ev.type === 'stage') {
+          stageUpdate(ev.stage, ev.message, ev.elapsed);
+        } else if (ev.type === 'tick') {
+          tickUpdate(ev.stage, ev.elapsedSec);
+        } else if (ev.type === 'recognized') {
+          // 识别结果先落下来，用户能立刻看到模型"读"到了什么
+          HW.preview = ev.problem;
+          HW.warnings = ev.warnings ?? [];
+          renderHwResult();
+        } else if (ev.type === 'done') {
+          HW.problem = ev.problem;
+          HW.opening = ev.opening;
+          HW.leakFlags = ev.leakFlags ?? [];
+          HW.warnings = ev.warnings ?? [];
+          HW.vision = ev.vision;
+          renderHwResult();
+          $('#q').placeholder = '就这道题接着问…（Enter 发送）';
+          [...stageEls.values()].forEach((el) => { el.classList.remove('on'); el.classList.add('done'); });
+          progressDone(false);
+        } else if (ev.type === 'error') {
+          showHwError(`出错：${ev.message}`);
+          progressDone(true);
+        }
+      }
+    };
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      handle(dec.decode(value, { stream: true }));
+    }
+    handle(dec.decode());
+  } catch (e) {
+    showHwError(`请求失败：${e.message}`);
+    progressDone(true);
+  } finally {
+    if (watchdog) clearInterval(watchdog);
+    HW.onEvent = null;
+    HW.busy = false;
+    attachBtn.disabled = false;
+    attachBtn.classList.remove('busy');
+    $('#send').disabled = false;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}
+
+function showHwError(msg) {
+  if (HW.bodyEl) {
+    HW.stageEl?.remove();
+    HW.bodyEl.insertAdjacentHTML('beforeend',
+      `<div style="color:var(--red);font-size:12.5px">${esc(msg)}</div>`);
+  } else {
+    pushSys(msg);
+  }
+}
+
+/* ---------- 结果渲染（单题） ---------- */
+function renderHwResult() {
+  const p = HW.problem;
+  const preview = HW.preview;
+  if (!p && !preview) return;
+  // 结果写进消息里专门的一块，避免把上面的进度条/阶段列表冲掉
+  const box = HW.bodyEl;
+  if (!box) return;
+
+  let html = '';
+
+  // 单题约束的提示（图中有多道题 / 没识别到题目）——只提示，不阻断
+  if (HW.warnings?.length) {
+    html += `<div class="qchk warn" style="margin-bottom:12px">
+        <div class="qh">关于这张照片</div>
+        <ul>${HW.warnings.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>
+      </div>`;
+  }
+
+  // 识别结果：先让用户核对模型"读"到了什么，这是后面所有判断的基准
+  const q = p?.question ?? preview?.question ?? '';
+  const no = p?.no ?? preview?.no ?? '';
+  const sol = p?.solution ?? preview?.solution ?? '';
+  if (q) {
+    html += `<div style="background:var(--bg);border-radius:10px;padding:11px 12px;margin-bottom:12px">
+        <div class="seclabel" style="margin-top:0">识别到的题目${no ? ` · ${esc(no)}` : ''}</div>
+        <div style="font-size:12.5px;color:var(--text)">${renderRich(q)}</div>
+        ${sol
+          ? `<div class="seclabel">题目自带的解答</div>
+             <div style="font-size:12.5px;color:var(--muted)">${renderRich(sol)}</div>`
+          : ''}
+        <div style="font-size:11px;color:var(--faint);margin-top:6px">
+          公式已转成 LaTeX。若与你手上的题目不一致，请重拍——识别错了的话，下面的判断就没有意义。
+        </div>
+      </div>`;
+  }
+
+  // 还没拿到完整结果时，说明正在进行到哪一步
+  if (!p) {
+    html += `<div class="stage on"><span class="dotmark"></span>
+        <span class="txt">正在核查这道题…</span></div>`;
+    box.innerHTML = html;
+    return;
+  }
+
+  const v = p.diagnosis?.status ?? 'unreadable';
+  html += `<div class="prob">
+      <div class="ph">
+        <span class="no">${esc(p.no)}</span>
+        <span class="verdict v-${v}">${esc(p.diagnosis?.verdict ?? '无法判定')}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--faint)">${p.nodes?.length ?? 0} 个知识点</span>
+      </div>`;
+
+  // 诊断说明
+  if (p.diagnosis?.reason) {
+    html += `<div class="seclabel">判定</div>
+      <div style="font-size:12.5px;color:var(--muted)">${esc(p.diagnosis.reason)}</div>`;
+  }
+
+  // 需重拍时，先给动作建议——这才解决问题
+  if (p.diagnosis?.retakeHints?.length) {
+    html += `<div class="seclabel">建议这样重拍</div>
+      <ul class="plain">${p.diagnosis.retakeHints.map((h) => `<li>${esc(h)}</li>`).join('')}</ul>`;
+  }
+
+  // 识别不确定处
+  if (p.diagnosis?.unreliable?.length) {
+    html += `<div class="seclabel">识别不确定的地方（未用于对错判断）</div>`;
+    html += p.diagnosis.unreliable.map((u) =>
+      `<div class="frag unclear"><span class="fr-tag">存疑</span>${renderRich(u.text)}</div>`).join('');
+  }
+
+  // 图谱节点标记
+  if (p.nodes?.length) {
+    html += `<div class="seclabel">图谱标记</div>`;
+    html += p.nodes.map((n) =>
+      `<span class="cite" onclick="selectNode('${jsq(n.id)}')" title="${n.matchBy === 'semantic' ? '语义匹配' : '字面命中'}">`
+      + `${esc(n.name)}</span>`).join('');
+  }
+
+  // 疑点
+  if (p.diagnosis?.mistakes?.length) {
+    html += `<div class="seclabel">值得重想的地方</div>`;
+    for (const m of p.diagnosis.mistakes) {
+      html += `<div class="mistake">
+          <b>${esc(m.point)}</b>
+          <div class="ev">依据：${esc(m.evidence)}</div>
+          ${m.nodeId ? `<span class="cite" onclick="selectNode('${jsq(m.nodeId)}')">${esc(m.nodeId)}</span>` : ''}
+        </div>`;
+    }
+  }
+
+  // 未覆盖
+  if (p.diagnosis?.notCovered?.length) {
+    html += `<div class="seclabel">题干要求但解答里看不到</div>
+      <ul class="plain">${p.diagnosis.notCovered.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
+  }
+
+  // 根因
+  if (p.roots?.roots?.length) {
+    html += `<div class="seclabel">可能要补的基础（沿先修链回溯）</div>`;
+    for (const r of p.roots.roots.slice(0, 3)) {
+      html += `<div class="chain"><div class="n" onclick="selectNode('${jsq(r.id)}')">
+          ${esc(r.name)}
+          <span class="pill ${r.isHardPrerequisite ? '' : 'warn'}">${r.isHardPrerequisite ? '硬前提' : '弱关联'}</span>
+          <div class="r">支撑 ${r.supportedCount} 个薄弱点 · 第 ${r.level} 层</div>
+        </div></div>`;
+    }
+  }
+
+  html += `</div>`;
+
+  // 开场引导
+  if (HW.opening) {
+    html += `<div style="background:var(--green-soft);border-radius:10px;padding:11px 12px;font-size:13px;margin-top:12px">
+        <div style="font-size:11px;color:var(--green-dark);margin-bottom:5px;font-weight:600">助教反馈</div>
+        ${renderRich(HW.opening)}
+      </div>`;
+    if (HW.leakFlags?.length) {
+      html += `<div class="leakwarn">边界提醒：这段反馈里检测到可能的解答泄露信号 —— ${esc(HW.leakFlags.join('；'))}。
+        系统把「不给答案」当作硬约束，此处已记录，请向助教指出并让它只给提示。</div>`;
+    }
+  }
+
+  // 识别细节（折叠）
+  if (HW.vision) {
+    html += `<details style="margin-top:10px">
+        <summary style="font-size:11.5px;color:var(--faint);cursor:pointer">识别信息</summary>
+        <div style="font-size:11.5px;color:var(--muted);background:var(--bg);border-radius:6px;padding:9px;margin-top:6px">
+          模型：${esc(HW.vision.model ?? '—')} ｜ 耗时：${((HW.vision.elapsedMs ?? 0) / 1000).toFixed(1)}s
+          ｜ 图片：${((HW.vision.imageBytes ?? 0) / 1024).toFixed(0)} KB
+        </div>
+      </details>`;
+  }
+
+  // 诊断完成之后，才给"结束本题"的出口：之后的提问就按普通答疑走了
+  if (p) {
+    html += `<div style="margin-top:12px;text-align:right">
+        <span class="endbtn" onclick="endProblem()">结束本题，回到普通答疑</span>
+      </div>`;
+  }
+
+  box.innerHTML = html;
+}
+
+/* ---------- 引导对话（就当前这道题继续追问） ---------- */
+function pushHwMsg(role, content) {
+  clearEmpty();
+  const el = document.createElement('div');
+  el.className = 'msg ' + (role === 'me' ? 'me' : 'ai');
+  el.innerHTML = `<div class="meta">${role === 'me' ? '我' : '助教'}</div>`
+    + `<div class="bubble">${role === 'me' ? esc(content) : renderRich(content)}</div>`;
+  logEl.appendChild(el);
+  logEl.scrollTop = logEl.scrollHeight;
+  return el.querySelector('.bubble');
+}
+
+async function hwAsk(text) {
+  if (HW.busy || !text.trim() || !HW.problem) return;
+  HW.busy = true; $('#send').disabled = true;
+
+  pushHwMsg('me', text);
+  const bubble = pushHwMsg('ai', '');
+  bubble.innerHTML = '<span class="thinking">思考中…</span>';
+
+  try {
+    const res = await fetch('/api/homework/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: text,
+        problem: {
+          no: HW.problem.no, question: HW.problem.question, solution: HW.problem.solution,
+          uncertain: HW.problem.uncertain, nodes: HW.problem.nodes,
+          diagnosis: HW.problem.diagnosis, roots: HW.problem.roots,
+        },
+        history: HW.history.slice(-8),
+      }),
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', raw = '', reason = '', segments = null, summary = null, flags = [];
+
+    const handle = (chunk) => {
+      buf += chunk;
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const part = buf.slice(0, i).trim();
+        buf = buf.slice(i + 2);
+        if (!part.startsWith('data:')) continue;
+        let ev; try { ev = JSON.parse(part.slice(5).trim()); } catch { continue; }
+
+        if (ev.type === 'text') {
+          raw += ev.content;
+          bubble.innerHTML = renderRich(raw);
+        } else if (ev.type === 'reasoning') {
+          reason += ev.content;
+          if (!raw) bubble.innerHTML = `<span class="thinking">思考中 ${reason.length} 字…</span>`;
+        } else if (ev.type === 'segments') {
+          segments = ev.segments; summary = ev.summary; flags = ev.leakFlags ?? [];
+        } else if (ev.type === 'error') {
+          bubble.innerHTML = `<span style="color:var(--red)">出错：${esc(ev.message)}</span>`;
+        }
+      }
+    };
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      handle(dec.decode(value, { stream: true }));
+    }
+    handle(dec.decode());
+
+    if (raw) {
+      bubble.innerHTML = renderSegments(segments ?? [], summary ?? { total: 0, grounded: 0, textbook: 0, web: 0, inferred: 0, invalid: 0, coverage: 0, nodeIds: [] }, null, reason);
+      if (flags.length) {
+        bubble.insertAdjacentHTML('beforeend',
+          `<div class="leakwarn">检测到可能的解答泄露：${esc(flags.join('；'))}</div>`);
+      }
+      HW.history.push({ role: 'user', content: text });
+      HW.history.push({ role: 'ai', content: raw });
+    }
+  } catch (e) {
+    bubble.innerHTML = `<span style="color:var(--red)">请求失败：${esc(e.message)}</span>`;
+  } finally {
+    HW.busy = false; $('#send').disabled = false;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}
+
+/* ---------- 统一发送入口 ----------
+ * 有题目上下文就按"追问这道题"走（带题目与图谱节点），否则走普通答疑。
+ * 这样学生不需要知道背后有两条链路。
+ */
+async function sendUser(text) {
+  const t = String(text ?? '').trim();
+  if (!t) return;
+  if (HW.problem) await hwAsk(t);
+  else await ask(t);
+}
+window.sendUser = sendUser;
+
+$('#send').onclick = () => { const t = $('#q').value; $('#q').value = ''; sendUser(t); };
+$('#q').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#send').click(); }
+});
+setSampleMode(false);   // 给初始那三个快捷问题接上点击
+
+window.selectNode = selectNode;
+window.showTrace = showTrace;
+window.addRoot = addRoot;
+window.renderSymp = renderSymp;
+window.draw = draw;
+window.ROOTSEL = ROOTSEL;
+
+resize();
+</script>
+</body>
+</html>

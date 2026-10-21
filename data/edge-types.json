@@ -1,0 +1,339 @@
+{
+  "_meta": {
+    "name": "边类型词表",
+    "version": "1.0",
+    "created": "2026-09-21",
+    "purpose": "把图谱里的关系从「靠放在哪个数组里区分」升级为「显式类型 + 族 + 数学性质」。新增一族关系时只改本文件与 schema 生成，不再改代码。",
+    "standard": "分类骨架采用 SKOS（W3C Recommendation）。标注 standard=skos 的为 SKOS 原生关系；standard=domain 的为本项目领域扩展。",
+    "properties": {
+      "id": "边类型标识（写入数据文件的 rel 字段）",
+      "zh": "中文名",
+      "en": "英文名",
+      "family": "所属族",
+      "standard": "skos | domain",
+      "symmetric": "是否对称（A→B 等价于 B→A）。⚠️ 对称关系与不对称关系不能共用一个无向边表。",
+      "transitive": "是否可传递（用于推导闭包与冗余边检测）",
+      "allowsCycle": "是否允许成环。教学关系必须无环；推导关系允许有环（物理量常互相定义）",
+      "endpoints": "两端节点类型",
+      "inUse": "是否已在数据中使用",
+      "note": "说明"
+    },
+    "families": {
+      "structural": "结构关系 —— 描述「由什么构成」，用于导航与定位，不参与语义推理",
+      "terminology": "词汇关系 —— 把不同说法的同一个概念归拢到一起，用于检索归一化",
+      "taxonomy": "分类关系 —— 上下位，反称且可传递",
+      "mapping": "映射关系 —— 跨词表对应（教材目录 ↔ 课程标准 ↔ 其他图谱）",
+      "thematic": "主题关联 —— 横向的、非先修的语义关联",
+      "pedagogical": "教学关系 —— 认知顺序，回答「该先学谁」",
+      "derivational": "推导关系 —— 数学推导，回答「这个式子是怎么来的」（Graph C）"
+    },
+    "skos": {
+      "standard": "SKOS Simple Knowledge Organization System",
+      "spec": "W3C Recommendation, 2009-08-18",
+      "url": "https://www.w3.org/TR/skos-reference/",
+      "note": "SKOS 原生关系共 13 种，分三组。本表列出全部 13 种及其在本项目中的实际状态。",
+      "whyUnused": "「未用」有三种完全不同的原因，别混成一类缺口：① by-design 规范规定不该建边（派生关系、逆关系、兜底类）；② data-gap 有需求但缺数据，是真缺口；③ needs-vocab 要有第二套词表才成立，现在无从谈起。",
+      "statusLabels": {
+        "in-use": "在用",
+        "equivalent": "等效实现",
+        "by-design": "未用 · 规范不该建",
+        "data-gap": "未用 · 缺数据",
+        "needs-vocab": "未用 · 缺第二套词表"
+      },
+      "groups": {
+        "labeling": "标签类 —— 同一个概念的不同名称（3 种）",
+        "semantic": "语义类 —— 概念之间的关系（5 种）",
+        "mapping": "映射类 —— 跨词表对应（5 种）"
+      },
+      "relations": [
+        { "skos": "skos:prefLabel", "id": "prefLabel", "group": "labeling", "zh": "首选名", "typeId": "prefLabel", "status": "equivalent", "count": 0,
+          "why": "语义 100% 生效——125 个知识点全部有 name，一个不缺。只是没有建成边：SKOS 里 prefLabel 的值本来就是**字面量字符串**，不是指向另一个概念的节点，所以挂在节点的 name 字段上才是对的建模方式。这一条不算缺口。" },
+        { "skos": "skos:altLabel", "id": "altLabel", "group": "labeling", "zh": "替代标签（别名、小名、简称）", "typeId": "altLabel", "status": "data-gap", "count": 0,
+          "why": "真缺口，也是 13 种里最该先补的一种。知识点字段里没有任何别名位（只有 id/name/sectionId/kind/difficulty/textbookRef/definition/keyPoints/formulas），而检索是纯按名字匹配的（graph.mjs 的 search() 只做 name CONTAINS，findFocusInQuestion() 只找节点名是否出现在提问里）。所以学生输入「场强」匹配不到「电场强度」、输入「麦氏方程」匹配不到「麦克斯韦方程组」。补它不影响图运算、不动现有 179 条边、不影响六项校验。" },
+        { "skos": "skos:hiddenLabel", "id": "hiddenLabel", "group": "labeling", "zh": "隐藏标签（只检索、不显示）", "typeId": "hiddenLabel", "status": "data-gap", "count": 0,
+          "why": "缺数据——知识点里没有任何「只用于检索、界面不显示」的词位。它和 altLabel 是一对：altLabel 可以显示（如把「麦克斯韦方程组」简称显示为「麦氏方程」），hiddenLabel 只喂给检索（常见错别字、口语说法）。可以和 altLabel 一起补。" },
+        { "skos": "skos:broader", "id": "broader", "group": "semantic", "zh": "上位（属）", "typeId": "broader", "status": "in-use", "count": 1,
+          "why": "全图 13 种 SKOS 关系里**唯一真的建了边**的一种。共 1 条：静电场的能量 → 电磁场能量密度（前者是后者的特例）。这条边原先被塞在无向的 relates 兜底表里，方向语义丢了，现已正名。" },
+        { "skos": "skos:narrower", "id": "narrower", "group": "semantic", "zh": "下位（种）", "typeId": "narrower", "status": "by-design", "count": 0,
+          "why": "SKOS 规定 narrower 是 broader 的**逆关系**。建了 broader 就等于有了 narrower，两个方向都写只是把同一件事说两遍、还会互相矛盾。需要时由 broader 反推即可。" },
+        { "skos": "skos:related", "id": "relatedTo", "group": "semantic", "zh": "一般相关", "typeId": "relatedTo", "status": "by-design", "count": 0,
+          "why": "兜底类，**0 条是好事**。12 条关联边全部归到了更具体的类型（形式类比 3、并列定理 1、易混淆 1…），没有一条需要掉进这个垃圾桶。SKOS 规范也明确警告不得用它代替上下位与部分-整体——一旦它有大量边，就说明分类没做到位。" },
+        { "skos": "skos:broaderTransitive", "id": "broaderTransitive", "group": "semantic", "zh": "上位（传递闭包）", "typeId": "broaderTransitive", "status": "by-design", "count": 0,
+          "why": "规范里它是 broader 的**传递闭包**：闭包该算出来，不该断言。手工写进去等于把「推导结果」伪装成「事实」。而且本项目已经在先修图上执行同一原则——check-graph.mjs 的冗余边检测会把「可由传递闭包推出」的边直接列为警告，同一条理由换到分类边也该一样处理。" },
+        { "skos": "skos:narrowerTransitive", "id": "narrowerTransitive", "group": "semantic", "zh": "下位（传递闭包）", "typeId": "narrowerTransitive", "status": "by-design", "count": 0,
+          "why": "它是 narrower 的**传递闭包**，同样该算不该断言——手工写进去就是把推导结果当成事实记。" },
+        { "skos": "skos:exactMatch", "id": "exactMatch", "group": "mapping", "zh": "完全等价", "typeId": "exactMatch", "status": "needs-vocab", "count": 0,
+          "why": "映射组的作用是让**两套词表**互相对上，而本项目只有一套：教材对齐郭硕鸿《电动力学》第三版，骨架来自国家高等教育智慧教育平台同一门课。一套词表映射一套词表，关系是空集。等换教材（郭硕鸿 ↔ 其他版本）时用它对齐编号。" },
+        { "skos": "skos:closeMatch", "id": "closeMatch", "group": "mapping", "zh": "近似等价", "typeId": "closeMatch", "status": "needs-vocab", "count": 0,
+          "why": "跨表映射，要有**两套**词表才有意义。本项目只有一套，所以无从谈起。它用于两套词表里含义相近但不完全等同的概念（如两个版本的教材把同一节切在不同位置）。" },
+        { "skos": "skos:broadMatch", "id": "broadMatch", "group": "mapping", "zh": "跨表更宽", "typeId": "broadMatch", "status": "needs-vocab", "count": 0,
+          "why": "缺第二套词表，但这一条**已有现成的落地场景**。本项目的节点骨架来自慕课课程大纲，教材出处对齐的是郭硕鸿——这两套体系的分节本来就不一一对应，而目前 `textbookRef` 只是一个**扁平字符串字段**，没有建成边。要把「课程大纲第 X 章 ↔ 郭硕鸿第 Y 节」这种宽窄不一致的对应关系表达出来，用的正是 broadMatch。" },
+        { "skos": "skos:narrowMatch", "id": "narrowMatch", "group": "mapping", "zh": "跨表更窄", "typeId": "narrowMatch", "status": "needs-vocab", "count": 0,
+          "why": "跨表映射，本项目只有一套词表，用不上。用于目标词表里的概念比本源概念更窄的情形。" },
+        { "skos": "skos:relatedMatch", "id": "relatedMatch", "group": "mapping", "zh": "跨表相关", "typeId": "relatedMatch", "status": "needs-vocab", "count": 0,
+          "why": "跨表映射，本项目只有一套词表，用不上。它与 relatedTo 的分工是：一个用于词表**内部**，一个用于词表**之间**。" }
+      ],
+      "notInSkos": "本项目的教学族（先修于）与推导族（取旋度并代入、分离变数、定出…）不属于 SKOS 范围——SKOS 只规范概念的名称与概念间关系，不涉及认知顺序与数学推导，因此标为「领域扩展」。它不是标准里的关系，也不必冒充标准。"
+    }
+  },
+
+  "types": [
+    {
+      "id": "hasSection", "zh": "含节", "en": "hasSection", "family": "structural",
+      "standard": "domain", "symmetric": false, "transitive": true, "allowsCycle": false,
+      "endpoints": ["Chapter", "Section"], "inUse": true,
+      "kuzuTable": "HAS_SECTION"
+    },
+    {
+      "id": "hasPoint", "zh": "含知识点", "en": "hasPoint", "family": "structural",
+      "standard": "domain", "symmetric": false, "transitive": true, "allowsCycle": false,
+      "endpoints": ["Section", "KnowledgePoint"], "inUse": true,
+      "kuzuTable": "HAS_POINT"
+    },
+    {
+      "id": "hasFormula", "zh": "含公式", "en": "hasFormula", "family": "structural",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "Formula"], "inUse": true,
+      "kuzuTable": "HAS_FORMULA"
+    },
+
+    {
+      "id": "prefLabel", "zh": "首选名", "en": "prefLabel", "family": "terminology",
+      "standard": "skos", "symmetric": false, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "Label"], "inUse": false,
+      "note": "正式名称，一个概念只有一个。当前用知识点的 name 字段承担，未建边。"
+    },
+    {
+      "id": "altLabel", "zh": "替代标签（别名）", "en": "altLabel", "family": "terminology",
+      "standard": "skos", "symmetric": true, "transitive": true, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "Label"], "inUse": false,
+      "note": "别名 / 小名 / 简称 / 缩写 / 曾用名 / 外文名，全部归此类——因为它们在检索时行为相同（把用户输入映射到同一实体）。例：场强 → 电场强度；麦氏方程 → 麦克斯韦方程组。"
+    },
+    {
+      "id": "hiddenLabel", "zh": "隐藏标签", "en": "hiddenLabel", "family": "terminology",
+      "standard": "skos", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "Label"], "inUse": false,
+      "note": "只用于检索命中、界面上不显示。适合常见错别字与口语说法（如「高斯定律」误写「高斯定理」）。"
+    },
+    {
+      "id": "exactMatch", "zh": "完全等价", "en": "exactMatch", "family": "mapping",
+      "standard": "skos", "symmetric": true, "transitive": true, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": false,
+      "note": "跨教材/跨图谱的同一概念。换教材时用它把两套编号对上。"
+    },
+    {
+      "id": "closeMatch", "zh": "近似等价", "en": "closeMatch", "family": "mapping",
+      "standard": "skos", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": false
+    },
+    {
+      "id": "broadMatch", "zh": "跨表更宽", "en": "broadMatch", "family": "mapping",
+      "standard": "skos", "symmetric": false, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": false,
+      "note": "目标词表里的概念比本源概念更宽。典型用法：课程标准的一级主题 ↔ 教材章节。"
+    },
+    {
+      "id": "narrowMatch", "zh": "跨表更窄", "en": "narrowMatch", "family": "mapping",
+      "standard": "skos", "symmetric": false, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": false
+    },
+    {
+      "id": "relatedMatch", "zh": "跨表相关", "en": "relatedMatch", "family": "mapping",
+      "standard": "skos", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": false,
+      "note": "跨词表的一般相关。与 relatedTo 的区别：一个用于同一词表内部，一个用于词表之间。"
+    },
+
+    {
+      "id": "broader", "zh": "上位（属）", "en": "broader", "family": "taxonomy",
+      "standard": "skos", "symmetric": false, "transitive": true, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "existingKind": ["概念推广"],
+      "note": "from 的更宽概念是 to（SKOS 语义：broader 指向更一般的那个）。⚠️ 现有关联边「静电场的能量 → 电磁场能量密度」实为此类——前者是后者的特例，原先被误归入兜底的 relates。与 narrower 互为逆关系，按 SKOS 规范只建一个方向即可。"
+    },
+    {
+      "id": "narrower", "zh": "下位（种）", "en": "narrower", "family": "taxonomy",
+      "standard": "skos", "symmetric": false, "transitive": true, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": false,
+      "note": "from 的更窄概念是 to（特例/具体化）。与 broader 互为逆关系。⚠️ 注意与 derivational 族的 derivesByLimit 区分：这里说的是「概念上是特例」，那里说的是「数学上取极限得到」。"
+    },
+    {
+      "id": "broaderTransitive", "zh": "上位（传递闭包）", "en": "broaderTransitive", "family": "taxonomy",
+      "standard": "skos", "symmetric": false, "transitive": true, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": false,
+      "note": "broader 的传递闭包。按 SKOS 规范，它应由 broader 计算得出而非手工建边——写入数据会被 check-graph.mjs 的冗余边检测拦下。"
+    },
+    {
+      "id": "narrowerTransitive", "zh": "下位（传递闭包）", "en": "narrowerTransitive", "family": "taxonomy",
+      "standard": "skos", "symmetric": false, "transitive": true, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": false,
+      "note": "narrower 的传递闭包，同样应由计算得出。"
+    },
+
+    {
+      "id": "analogousTo", "zh": "形式类比", "en": "analogousTo", "family": "thematic",
+      "standard": "domain", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "existingKind": ["对称类比"],
+      "note": "两套方程/物理量形式同构、一一对应。现有 3 条：电偶极~磁偶极、标势~磁标势、多极展开~磁多极矩。"
+    },
+    {
+      "id": "parallelRole", "zh": "地位平行", "en": "parallelRole", "family": "thematic",
+      "standard": "domain", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "existingKind": ["对偶概念"],
+      "note": "为同一目的引入、地位平行的辅助量。现有 1 条：D ~ H。与 analogousTo 的区别是不强调方程同构，而强调引入动机相同。"
+    },
+    {
+      "id": "methodTransferable", "zh": "方法可迁移", "en": "methodTransferable", "family": "thematic",
+      "standard": "domain", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "existingKind": ["方法迁移"],
+      "note": "同一数学方法可解两类物理问题。现有 1 条：镜像法 ~ 磁标势例题。"
+    },
+    {
+      "id": "sameFramework", "zh": "同一数学框架", "en": "sameFramework", "family": "thematic",
+      "standard": "domain", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "existingKind": ["同一框架"],
+      "note": "同属一个数学问题类型。现有 1 条：谐振腔 ~ 矩形波导模式（都是亥姆霍兹本征值问题）。"
+    },
+    {
+      "id": "parallelTheorem", "zh": "并列定理", "en": "parallelTheorem", "family": "thematic",
+      "standard": "domain", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "existingKind": ["并列定理"],
+      "note": "同级、无依赖的平行结论。现有 1 条：高斯定理 ~ 斯托克斯定理。"
+    },
+    {
+      "id": "seriesOrder", "zh": "展开阶次", "en": "seriesOrder", "family": "thematic",
+      "standard": "domain", "symmetric": false, "transitive": true, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "existingKind": ["量级递进"],
+      "note": "同一级数展开的不同阶，逐级压低。现有 1 条：电偶极辐射 → 电四极辐射（(ka)² 量级）。⚠️ 不对称且可传递，原先被放在对称的 relates 表里，方向语义丢失。"
+    },
+    {
+      "id": "theoreticalBasis", "zh": "理论支撑", "en": "theoreticalBasis", "family": "thematic",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "existingKind": ["理论支撑"],
+      "note": "前者为后者的方法提供理论保证，但不构成必须的先修。现有 1 条：唯一性定理 → 格林函数。⚠️ 不对称，原先误置于对称表。"
+    },
+    {
+      "id": "sharedInsight", "zh": "共同指向", "en": "sharedInsight", "family": "thematic",
+      "standard": "domain", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "existingKind": ["势的地位"],
+      "note": "两个知识点共同支撑同一个物理认识。现有 1 条：AB 效应 ~ 四维势（都指向「势比场更基本」）。"
+    },
+    {
+      "id": "easilyConfusedWith", "zh": "易混淆", "en": "easilyConfusedWith", "family": "thematic",
+      "standard": "domain", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "existingKind": ["易混淆对比"],
+      "note": "表面相似、机制不同，是典型的教学易错点。现有 1 条：迈斯纳效应 ~ 理想导体边界条件。可用于生成辨析题。"
+    },
+    {
+      "id": "relatedTo", "zh": "一般相关", "en": "relatedTo", "family": "thematic",
+      "standard": "skos", "symmetric": true, "transitive": false, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": false,
+      "note": "兜底关系。⚠️ 按 SKOS 规范，不得用它代替上下位（broader/narrower）或部分-整体。留作最后手段，且应定期复查是否可归入更具体的类型。"
+    },
+
+    {
+      "id": "prerequisiteOf", "zh": "先修于", "en": "prerequisiteOf", "family": "pedagogical",
+      "standard": "domain", "symmetric": false, "transitive": true, "allowsCycle": false,
+      "endpoints": ["KnowledgePoint", "KnowledgePoint"], "inUse": true, "kuzuTable": "PREREQUISITE_OF",
+      "extraProps": ["strength", "reason"],
+      "note": "认知顺序（该先学谁），不是数学推导。必须无环，由 check-graph.mjs 的 Kahn 拓扑排序强制。strength 取 强/弱。"
+    },
+
+    {
+      "id": "derivesByDefinition", "zh": "由定义直接给出", "en": "derivesByDefinition", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": true, "allowsCycle": true,
+      "endpoints": ["Equation", "Quantity"], "inUse": false
+    },
+    {
+      "id": "derivesByCurl", "zh": "取旋度并代入", "en": "derivesByCurl", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": true,
+      "endpoints": ["Equation", "Equation"], "inUse": false,
+      "note": "对场方程取旋度、再用另一条方程消去耦合项。麦克斯韦方程组 → 波动方程 即用此法。"
+    },
+    {
+      "id": "derivesByDivergence", "zh": "取散度", "en": "derivesByDivergence", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": true,
+      "endpoints": ["Equation", "Equation"], "inUse": false
+    },
+    {
+      "id": "derivesByHarmonicReduction", "zh": "化为定态方程", "en": "derivesByHarmonicReduction", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": true,
+      "endpoints": ["Equation", "Equation"], "inUse": false,
+      "note": "设场按 e^{-iωt} 变化，把含时方程化为不含时方程（∂²/∂t² → −ω²）。波动方程 → 亥姆霍兹方程。前提本身用 assumes 边单独记录。"
+    },
+    {
+      "id": "assumes", "zh": "前提假设", "en": "assumes", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": false,
+      "endpoints": ["Equation", "Condition"], "inUse": false,
+      "note": "该式成立所依赖的前提条件（无源、单色、远场、介质均匀…）。⚠️ 把「前提」独立成节点而不是写进 reason 字符串，是为了让前提可被单独检索与复用——同一个假设常被多条推导共享。"
+    },
+    {
+      "id": "derivesBySeparation", "zh": "分离变数", "en": "derivesBySeparation", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": true,
+      "endpoints": ["Equation", "Solution"], "inUse": false
+    },
+    {
+      "id": "derivesByBoundaryCondition", "zh": "由边界条件定解", "en": "derivesByBoundaryCondition", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": true,
+      "endpoints": ["Solution", "Solution"], "inUse": false,
+      "note": "通解加上边界/初始条件才成为定解。"
+    },
+    {
+      "id": "derivesBySymmetry", "zh": "由对称性得出", "en": "derivesBySymmetry", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": true,
+      "endpoints": ["Condition", "Equation"], "inUse": false
+    },
+    {
+      "id": "derivesByLimit", "zh": "取极限/特殊情形", "en": "derivesByLimit", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": true,
+      "endpoints": ["Equation", "Equation"], "inUse": false,
+      "note": "如 ω→0、v≪c、边界趋于无穷。与 taxonomy 的 narrower 不同：这里说的是「数学上取极限得到」，不是「概念上是特例」。"
+    },
+    {
+      "id": "derivesByApproximation", "zh": "近似", "en": "derivesByApproximation", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": true,
+      "endpoints": ["Equation", "Equation"], "inUse": false
+    },
+    {
+      "id": "derivesByEquivalentTransform", "zh": "等价变形", "en": "derivesByEquivalentTransform", "family": "derivational",
+      "standard": "domain", "symmetric": true, "transitive": true, "allowsCycle": true,
+      "endpoints": ["Equation", "Equation"], "inUse": false,
+      "note": "两式数学上等价（如积分形式与微分形式）。对称关系。"
+    },
+    {
+      "id": "derivesBySubstitution", "zh": "代入", "en": "derivesBySubstitution", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": true, "allowsCycle": true,
+      "endpoints": ["Equation", "Equation"], "inUse": false
+    },
+    {
+      "id": "derivesBySuperposition", "zh": "叠加", "en": "derivesBySuperposition", "family": "derivational",
+      "standard": "domain", "symmetric": true, "transitive": false, "allowsCycle": true,
+      "endpoints": ["Solution", "Solution"], "inUse": false
+    },
+    {
+      "id": "determines", "zh": "定出", "en": "determines", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": true, "allowsCycle": true,
+      "endpoints": ["Quantity", "Quantity"], "inUse": false,
+      "note": "由一个量定出另一个量（如由 Faraday 定律用 E 定出 B）。⚠️ 这一族**必须允许成环**，也正是必须建 Graph C 而不能塞进先修图的核心原因：E 与 B 互相定出，ω 与 k 由色散关系互相绑定，天然是环。"
+    },
+    {
+      "id": "produces", "zh": "给出量", "en": "produces", "family": "derivational",
+      "standard": "domain", "symmetric": false, "transitive": false, "allowsCycle": true,
+      "endpoints": [["Equation", "Solution"], "Quantity"], "inUse": true,
+      "note": "给出某个量的具体形式。起点可以是方程，也可以是某个解（平面波解同时给出 E 与 B）。端点写成数组表示「任一即可」。"
+    }
+  ],
+
+  "migrationMap": {
+    "_note": "现有 12 条 relates 边的 kind → 新类型映射。★ 标记的 3 条从「无向兜底表」迁出，因为它们是反称关系，原先方向语义丢失。",
+    "对称类比": "analogousTo",
+    "对偶概念": "parallelRole",
+    "方法迁移": "methodTransferable",
+    "同一框架": "sameFramework",
+    "并列定理": "parallelTheorem",
+    "量级递进": "seriesOrder ★（反称，可传递）",
+    "理论支撑": "theoreticalBasis ★（反称）",
+    "势的地位": "sharedInsight",
+    "易混淆对比": "easilyConfusedWith",
+    "概念推广": "broader ★（真·上下位，原先被误归入兜底 relates；方向为 特例 → 一般）"
+  }
+}

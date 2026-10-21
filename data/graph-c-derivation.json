@@ -1,0 +1,166 @@
+{
+  "_meta": {
+    "name": "Graph C — 数学推导属性图谱",
+    "graph": "C",
+    "version": "0.1-sample",
+    "created": "2026-09-21",
+    "status": "样板（sample）",
+    "purpose": "回答「这个概念/这个式子是怎么来的」。与教学先修图（Graph B）职责不同：B 说该先学谁，C 说数学上怎么推出来。",
+    "constraints": {
+      "allowsCycle": true,
+      "why": "物理量常互相定出（E 与 B 由 Maxwell 定律互推、ω 与 k 由色散关系互绑），天然成环。教学先修图强制无环，装不下这族关系，故必须独立成图。",
+      "acyclicCheck": "本图不做 Kahn 无环检测；改做「每条边必须有 steps 或 reason」的可追溯性检测。"
+    },
+    "nodeTypes": {
+      "Equation": "方程/关系式",
+      "Condition": "前提假设（无源、单色、远场、介质均匀…）",
+      "Solution": "解（通解或特定解）",
+      "Quantity": "物理量"
+    },
+    "kpLink": "节点上的 kp 字段指向 KnowledgePoint.id，用于把数学图与教学图对接。kp 为 null 表示该节点在现有教学图谱中没有对应知识点。",
+    "renderConvention": "expr 与 steps 里的数学**一律写成 LaTeX**：行内用 $...$，独立成行用 $$...$$，由前端 KaTeX 渲染。禁止出现裸 LaTeX 源码或 Unicode 伪公式（如「e^{±i kx x}」）——前者人读不了，后者是人读得了但机器讲不清。文字部分保持中文自然语言，只有式子是 LaTeX。",
+    "⚠️_review": "本文件为格式样板，物理内容依据郭硕鸿《电动力学》第三版 §4.1 编写，**尚未经物理专业复核**。正式启用前必须逐条核对推导步骤。",
+    "scope": "仅覆盖一条链路：真空无源 → 麦克斯韦方程组 → 波动方程 → 亥姆霍兹方程 → 平面波解。用于验证数据格式与联动方式，不是完整图谱。"
+  },
+
+  "nodes": [
+    {
+      "id": "cc_no_source", "type": "Condition", "name": "无源真空假设",
+      "expr": "\\rho = 0,\\quad \\vec{J} = 0",
+      "kp": null,
+      "note": "在远离电荷与电流的区域研究波的传播。没有这一前提就没有下文的波动方程。"
+    },
+    {
+      "id": "cc_harmonic", "type": "Condition", "name": "定态（单色）假设",
+      "expr": "\\vec{E}(\\vec{r},t) = \\vec{E}(\\vec{r})\\,e^{-i\\omega t}",
+      "kp": null,
+      "note": "限定为单一频率的时谐场。一般场可由不同频率的单色场叠加得到。"
+    },
+    {
+      "id": "ce_maxwell", "type": "Equation", "name": "麦克斯韦方程组（无源真空）",
+      "expr": "\\begin{aligned}\\nabla\\cdot\\vec{E}=0,&\\quad \\nabla\\times\\vec{E}=-\\dfrac{\\partial \\vec{B}}{\\partial t},\\\\[2pt]\\nabla\\cdot\\vec{B}=0,&\\quad \\nabla\\times\\vec{B}=\\dfrac{1}{c^{2}}\\dfrac{\\partial \\vec{E}}{\\partial t}\\end{aligned}",
+      "kp": "kp_maxwell_equations",
+      "note": "整条链的起点。注意：它本身不直接可见波动行为，波动方程是它的推论。"
+    },
+    {
+      "id": "ce_wave", "type": "Equation", "name": "电磁场波动方程",
+      "expr": "\\nabla^{2}\\vec{E}-\\dfrac{1}{c^{2}}\\dfrac{\\partial^{2}\\vec{E}}{\\partial t^{2}}=0",
+      "kp": "kp_wave_equation",
+      "note": "由方程组消去耦合项得到，是「电磁波」这一结论的真正来源。"
+    },
+    {
+      "id": "ce_helmholtz", "type": "Equation", "name": "亥姆霍兹方程",
+      "expr": "\\nabla^{2}\\vec{E}+k^{2}\\vec{E}=0,\\qquad k=\\dfrac{\\omega}{c}",
+      "kp": "kp_helmholtz_equation",
+      "note": "波动方程在单色条件下的形式。定解问题（含边界条件）通常在这一步求解。"
+    },
+    {
+      "id": "cs_plane_wave", "type": "Solution", "name": "平面波解",
+      "expr": "\\vec{E}=\\vec{E}_{0}\\,e^{i(\\vec{k}\\cdot\\vec{r}-\\omega t)}",
+      "kp": "kp_plane_wave",
+      "note": "直角坐标分离变数得到的正向传播支。等相位面为平面。"
+    },
+    {
+      "id": "cq_E", "type": "Quantity", "name": "电场强度 E",
+      "expr": "\\vec{E}",
+      "kp": "kp_e_field"
+    },
+    {
+      "id": "cq_B", "type": "Quantity", "name": "磁感应强度 B",
+      "expr": "\\vec{B}",
+      "kp": null,
+      "note": "⚠️ 教学图谱中没有「磁感应强度」这个知识点——量没有被建模，只建了概念。"
+    },
+    {
+      "id": "cq_k", "type": "Quantity", "name": "波矢量 k",
+      "expr": "\\vec{k}",
+      "kp": null,
+      "note": "方向为传播方向，大小 k = ω/c。"
+    },
+    {
+      "id": "cq_omega", "type": "Quantity", "name": "角频率 ω",
+      "expr": "\\omega",
+      "kp": null
+    }
+  ],
+
+  "edges": [
+    {
+      "from": "ce_maxwell", "to": "cc_no_source", "rel": "assumes",
+      "steps": "研究远离源的区域，取 $\\rho=0$、$\\vec{J}=0$，麦克斯韦方程组化为无源形式。",
+      "review": "pending"
+    },
+    {
+      "from": "ce_maxwell", "to": "ce_wave", "rel": "derivesByCurl",
+      "steps": "① 对 $\\nabla\\times\\vec{E}=-\\frac{\\partial\\vec{B}}{\\partial t}$ 两边取旋度，得 $\\nabla\\times(\\nabla\\times\\vec{E})=-\\frac{\\partial}{\\partial t}(\\nabla\\times\\vec{B})$；\n② 用 $\\nabla\\times\\vec{B}=\\frac{1}{c^{2}}\\frac{\\partial\\vec{E}}{\\partial t}$ 代入右端，得 $\\nabla\\times(\\nabla\\times\\vec{E})=-\\frac{1}{c^{2}}\\frac{\\partial^{2}\\vec{E}}{\\partial t^{2}}$；\n③ 左端用恒等式 $\\nabla\\times(\\nabla\\times\\vec{E})=\\nabla(\\nabla\\cdot\\vec{E})-\\nabla^{2}\\vec{E}$，并由无源条件 $\\nabla\\cdot\\vec{E}=0$ 化为 $-\\nabla^{2}\\vec{E}$；\n④ 两边整理即得 $\\nabla^{2}\\vec{E}=\\frac{1}{c^{2}}\\frac{\\partial^{2}\\vec{E}}{\\partial t^{2}}$。",
+      "review": "pending"
+    },
+    {
+      "from": "ce_wave", "to": "cc_harmonic", "rel": "assumes",
+      "steps": "限定为单色场，令 $\\vec{E}(\\vec{r},t)=\\vec{E}(\\vec{r})\\,e^{-i\\omega t}$。",
+      "review": "pending"
+    },
+    {
+      "from": "ce_wave", "to": "ce_helmholtz", "rel": "derivesByHarmonicReduction",
+      "steps": "单色场满足 $\\frac{\\partial^{2}\\vec{E}}{\\partial t^{2}}=-\\omega^{2}\\vec{E}$。代入波动方程得 $\\nabla^{2}\\vec{E}+\\frac{\\omega^{2}}{c^{2}}\\vec{E}=0$，记 $k=\\frac{\\omega}{c}$，即 $\\nabla^{2}\\vec{E}+k^{2}\\vec{E}=0$。",
+      "review": "pending"
+    },
+    {
+      "from": "ce_helmholtz", "to": "cs_plane_wave", "rel": "derivesBySeparation",
+      "steps": "在直角坐标下设 $\\vec{E}=X(x)Y(y)Z(z)$，分离变数后每个分量满足形如 $\\frac{d^{2}X}{dx^{2}}+k_{x}^{2}X=0$ 的方程，解为 $e^{\\pm ik_{x}x}$。合成得 $\\vec{E}=\\vec{E}_{0}e^{i\\vec{k}\\cdot\\vec{r}}$，其中 $k_{x}^{2}+k_{y}^{2}+k_{z}^{2}=k^{2}$。乘回时间因子 $e^{-i\\omega t}$（取正向传播支）即得 $\\vec{E}=\\vec{E}_{0}e^{i(\\vec{k}\\cdot\\vec{r}-\\omega t)}$。",
+      "review": "pending"
+    },
+    {
+      "from": "cs_plane_wave", "to": "cq_E", "rel": "produces",
+      "steps": "平面波解给出了电场强度的具体形式。",
+      "review": "pending"
+    },
+    {
+      "from": "cs_plane_wave", "to": "cq_B", "rel": "produces",
+      "steps": "同一解同时给出磁感应强度的具体形式。",
+      "review": "pending"
+    },
+    {
+      "from": "cq_E", "to": "cq_B", "rel": "determines",
+      "steps": "对平面波代入 Faraday 定律 $\\nabla\\times\\vec{E}=-\\frac{\\partial\\vec{B}}{\\partial t}$，得 $\\vec{k}\\times\\vec{E}=\\omega\\vec{B}$，即 $\\vec{B}=\\frac{1}{\\omega}(\\vec{k}\\times\\vec{E})$。结论：$\\vec{E}$、$\\vec{B}$、$\\vec{k}$ 构成右手正交系，且 $|\\vec{E}|=c|\\vec{B}|$。",
+      "review": "pending"
+    },
+    {
+      "from": "cq_B", "to": "cq_E", "rel": "determines",
+      "steps": "对平面波代入 Ampère 定律 $\\nabla\\times\\vec{B}=\\frac{1}{c^{2}}\\frac{\\partial\\vec{E}}{\\partial t}$，得 $\\vec{E}=-\\frac{c^{2}}{\\omega}(\\vec{k}\\times\\vec{B})$，与上式互为逆推。",
+      "cycleWith": "cq_E→cq_B",
+      "review": "pending"
+    },
+    {
+      "from": "cq_omega", "to": "cq_k", "rel": "determines",
+      "steps": "单色平面波满足色散关系 $\\omega=c|\\vec{k}|$（真空）。由 $\\omega$ 可定出 $k$ 的大小。",
+      "review": "pending"
+    },
+    {
+      "from": "cq_k", "to": "cq_omega", "rel": "determines",
+      "steps": "同一色散关系的逆用：由 $k$ 的大小可定出 $\\omega$。",
+      "cycleWith": "cq_omega→cq_k",
+      "review": "pending"
+    }
+  ],
+
+  "knownCycles": [
+    {
+      "nodes": ["cq_E", "cq_B"],
+      "why": "电场与磁场由 Maxwell 方程组互相定出，不存在「谁先在逻辑上」的先后。",
+      "implication": "这是教学先修图无法承载的关系类型：先修图的 Kahn 无环检测会直接把它判为错误。"
+    },
+    {
+      "nodes": ["cq_omega", "cq_k"],
+      "why": "色散关系是一组等式，两个量互为函数。",
+      "implication": "同上。"
+    }
+  ],
+
+  "howItAnswers_theQuestion": {
+    "question": "学生问：平面电磁波是怎么来的？",
+    "traversal": "从 cs_plane_wave 沿 edges 反向回溯（to → from），依次得到：ce_helmholtz（分离变数）→ ce_wave（化为定态方程，前提：单色假设）→ ce_maxwell（取旋度并代入，前提：无源真空假设）",
+    "result": "一条带推导动作与前提的链，每一步都能展开成具体的数学操作（steps 字段），而不是一句「由麦克斯韦方程组可得」。",
+    "linkToTeachingGraph": "同时通过节点的 kp 字段，把每一步映射回教学图谱的知识点，于是「你不懂的这个概念」与「它是怎么来的」在同一界面上打通。"
+  }
+}

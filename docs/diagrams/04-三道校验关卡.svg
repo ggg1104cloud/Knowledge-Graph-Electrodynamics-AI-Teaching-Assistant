@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img">
+  <title>三道关卡：AI 输出与知识图谱相互校验</title>
+  <desc>事前约束要求模型逐句标注依据，事中校验拦下编造的节点 ID，事后呈现用逐句着色和覆盖率统计把判断权交给学生。反方向由图谱自身的独立校验保证。</desc>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="720" fill="#FFFFFF"/>
+
+  <text x="64" y="66" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="26" font-weight="500" fill="#1E293B">三道关卡：AI 输出与知识图谱相互校验</text>
+  <text x="64" y="98" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="15" fill="#64748B">把一段不可追溯的文本，变成可以逐句核查的结论</text>
+
+  <rect x="64" y="146" width="1152" height="118" rx="12" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+  <rect x="64" y="146" width="6" height="118" rx="3" fill="#0F6E56"/>
+  <circle cx="112" cy="205" r="21" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.2"/>
+  <text x="112" y="213" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="17" font-weight="500" fill="#085041">1</text>
+  <text x="152" y="192" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="18" font-weight="500" fill="#1E293B">事前约束　强制标注</text>
+  <text x="152" y="220" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13.5" fill="#64748B">模型不许自由发挥，必须逐句说明依据来自哪里。</text>
+  <text x="152" y="243" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13.5" fill="#64748B">没有确凿依据的句子必须留空，不许硬贴一个看着像依据的标记。</text>
+
+  <rect x="700" y="164" width="238" height="38" rx="8" fill="#E1F5EE" stroke="#5DCAA5" stroke-width="1"/>
+  <text x="819" y="189" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#085041">[[KG:节点ID]]　图谱依据</text>
+  <rect x="954" y="164" width="238" height="38" rx="8" fill="#E6F1FB" stroke="#85B7EB" stroke-width="1"/>
+  <text x="1073" y="189" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#0C447C">[[TXT:节点ID]]　教材依据</text>
+  <rect x="700" y="210" width="492" height="38" rx="8" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1"/>
+  <text x="946" y="235" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#444441">不加任何标记　→　系统直接判定为「AI 推断」</text>
+
+  <rect x="64" y="282" width="1152" height="118" rx="12" fill="#FAEEDA" stroke="#EF9F27" stroke-width="1.5"/>
+  <rect x="64" y="282" width="6" height="118" rx="3" fill="#854F0B"/>
+  <circle cx="112" cy="341" r="21" fill="#FFFFFF" stroke="#854F0B" stroke-width="1.2"/>
+  <text x="112" y="349" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="17" font-weight="500" fill="#633806">2</text>
+  <text x="152" y="328" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="18" font-weight="500" fill="#412402">事中校验　编造的引用会被拦下</text>
+  <text x="152" y="356" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13.5" fill="#854F0B">后端逐条校验每个节点 ID 是否真实存在于图谱中。这一步是可信度的关键。</text>
+  <text x="152" y="379" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13.5" fill="#854F0B">作业诊断同样：每条结论必须附原文依据，找不到依据就不允许写。</text>
+
+  <rect x="700" y="300" width="492" height="38" rx="8" fill="#FFFFFF" stroke="#5DCAA5" stroke-width="1"/>
+  <text x="946" y="325" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#085041">校验通过　→　显示为可点击的图谱引用</text>
+  <rect x="700" y="346" width="492" height="38" rx="8" fill="#FCEBEB" stroke="#F09595" stroke-width="1"/>
+  <text x="946" y="371" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#A32D2D">校验失败　→　标红「该节点在图谱中不存在，已被拦截」</text>
+
+  <rect x="64" y="418" width="1152" height="118" rx="12" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="1"/>
+  <rect x="64" y="418" width="6" height="118" rx="3" fill="#534AB7"/>
+  <circle cx="112" cy="477" r="21" fill="#EEEDFE" stroke="#534AB7" stroke-width="1.2"/>
+  <text x="112" y="485" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="17" font-weight="500" fill="#3C3489">3</text>
+  <text x="152" y="464" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="18" font-weight="500" fill="#1E293B">事后呈现　让可信度可见</text>
+  <text x="152" y="492" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13.5" fill="#64748B">每个句子按依据来源着色，末尾给出依据覆盖率统计。</text>
+  <text x="152" y="515" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13.5" fill="#64748B">系统不替学生决定这段话能不能信，而是把每句话的来路摊开。</text>
+
+  <rect x="700" y="436" width="492" height="38" rx="8" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+  <circle cx="742" cy="455" r="6" fill="#0F6E56"/>
+  <text x="756" y="460" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#444441">图谱依据</text>
+  <circle cx="860" cy="455" r="6" fill="#185FA5"/>
+  <text x="874" y="460" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#444441">教材依据</text>
+  <circle cx="978" cy="455" r="6" fill="#B4B2A9"/>
+  <text x="992" y="460" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#444441">AI 推断</text>
+  <rect x="700" y="482" width="492" height="38" rx="8" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1"/>
+  <text x="946" y="507" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#444441">末尾统计：共几句、各来自哪里、几条无效引用</text>
+
+  <line x1="112" y1="264" x2="112" y2="282" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="112" y1="400" x2="112" y2="418" stroke="#94A3B8" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <rect x="64" y="566" width="1152" height="98" rx="12" fill="#FFFFFF" stroke="#0E7A5C" stroke-width="1.5"/>
+  <text x="88" y="596" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="500" fill="#085041">反方向同样要校验：图谱自己也得站得住</text>
+  <text x="88" y="620" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13.5" fill="#0F6E56">既然用图谱校验模型，图谱自身的正确性就必须受独立校验约束。所以这种「相互判断」是双向的：</text>
+  <text x="88" y="646" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13.5" fill="#0F6E56">引用完整性　·　无环检测（Kahn 拓扑排序）　·　自环与重复边　·　冗余边（传递闭包）</text>
+</svg>

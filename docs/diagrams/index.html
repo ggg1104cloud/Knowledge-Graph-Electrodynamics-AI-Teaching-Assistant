@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>电动力学 AI 助教 · 结构图集</title>
+<style>
+  :root { --ink:#1E293B; --muted:#64748B; --faint:#94A3B8; --line:#E2E8F0; --green:#0E7A5C; --bg:#F2F5F3; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:32px 28px 56px; background:var(--bg); color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;
+  }
+  header { max-width:1280px; margin:0 auto 26px; }
+  h1 { margin:0 0 8px; font-size:24px; font-weight:500; }
+  h2 { max-width:1280px; margin:34px auto 14px; font-size:16px; font-weight:500; color:var(--ink); }
+  h2:first-of-type { margin-top:0; }
+  .sub { font-size:14px; color:var(--muted); line-height:1.7; }
+  .hint {
+    margin-top:14px; padding:11px 14px; background:#fff; border:1px solid var(--line);
+    border-radius:10px; font-size:13px; color:var(--muted); line-height:1.8;
+  }
+  .hint b { color:var(--green); font-weight:500; }
+  .hint code { background:#F1F5F9; padding:1px 5px; border-radius:4px; }
+  .grid { max-width:1280px; margin:0 auto; display:flex; flex-direction:column; gap:26px; }
+  figure {
+    margin:0; background:#fff; border:1px solid var(--line); border-radius:14px;
+    overflow:hidden;
+  }
+  figure img { display:block; width:100%; height:auto; }
+  figcaption {
+    padding:12px 16px 14px; border-top:1px solid var(--line);
+    display:flex; align-items:baseline; gap:12px;
+  }
+  figcaption .n {
+    font-size:12px; color:#fff; background:var(--green); border-radius:99px;
+    padding:2px 9px; font-weight:500;
+  }
+  figcaption .n.new { background:#B45309; }
+  figcaption .t { font-size:15px; font-weight:500; }
+  figcaption .d { font-size:13px; color:var(--muted); margin-left:auto; }
+
+  @media print {
+    body { background:#fff; padding:0; }
+    header, .hint { display:none; }
+    .grid { gap:0; }
+    figure { border:0; border-radius:0; page-break-after:always; }
+    figure img { width:100%; }
+    figcaption { border-top:0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>电动力学 AI 助教 · 结构图集</h1>
+  <div class="sub">8 张用于展示的结构图。每张均为 16:9（1280×720），留白充足，可直接放进幻灯片。</div>
+  <div class="hint">
+    <b>怎么用</b>：<code>png/</code> 目录下是 2 倍分辨率（2560×1440）的位图，拖进 PPT / Keynote / 飞书文档即可。<br>
+    <b>要改颜色或文字</b>：直接编辑同名的 <code>.svg</code> 文件（纯文本），浏览器打开就能看效果。<br>
+    <b>改完重新导出</b>：在 <code>em-tutor/</code> 下跑 <code>npm run diagrams</code>（全量）或 <code>node scripts/export-diagrams.mjs 07 08</code>（按文件名筛选）。<br>
+    <b>导出 PDF</b>：在本页按 Ctrl+P，选择「另存为 PDF」，会自动每页一张图。
+  </div>
+</header>
+
+<h2>图谱底座（讲「图」的时候用）</h2>
+<div class="grid">
+  <figure>
+    <img src="02-属性图与三类关系族.svg" alt="属性图与三类关系族">
+    <figcaption><span class="n">02</span><span class="t">属性图与三类关系族</span><span class="d">讲底座：一张图、4 类节点、5 种边、三族关系</span></figcaption>
+  </figure>
+  <figure>
+    <img src="06-图谱规模与构成.svg" alt="图谱规模与构成">
+    <figcaption><span class="n">06</span><span class="t">图谱规模与构成</span><span class="d">讲资产体量与数据质量</span></figcaption>
+  </figure>
+  <figure>
+    <img src="07-三族关系的界面落点.svg" alt="三族关系的界面落点">
+    <figcaption><span class="n new">07</span><span class="t">三族关系在界面上的落点</span><span class="d">讲「图谱在界面上长什么样」</span></figcaption>
+  </figure>
+  <figure>
+    <img src="08-如何找到GraphC.svg" alt="如何找到 Graph C">
+    <figcaption><span class="n new">08</span><span class="t">如何找到 Graph C</span><span class="d">演示用：现场点给学生看</span></figcaption>
+  </figure>
+</div>
+
+<h2>系统与链路</h2>
+<div class="grid">
+  <figure>
+    <img src="01-系统总览.svg" alt="系统总览">
+    <figcaption><span class="n">01</span><span class="t">系统总览</span><span class="d">开场用，讲清三层结构</span></figcaption>
+  </figure>
+  <figure>
+    <img src="03-拍照解题链路.svg" alt="拍照解题链路">
+    <figcaption><span class="n">03</span><span class="t">拍照解题链路与耗时</span><span class="d">讲流程与为什么要做心跳</span></figcaption>
+  </figure>
+  <figure>
+    <img src="04-三道校验关卡.svg" alt="三道校验关卡">
+    <figcaption><span class="n">04</span><span class="t">三道关卡：AI 与图谱相互校验</span><span class="d">技术亮点，建议重点讲</span></figcaption>
+  </figure>
+  <figure>
+    <img src="05-根因回溯.svg" alt="根因回溯">
+    <figcaption><span class="n">05</span><span class="t">根因回溯</span><span class="d">最有说服力的应用场景</span></figcaption>
+  </figure>
+</div>
+
+</body>
+</html>
